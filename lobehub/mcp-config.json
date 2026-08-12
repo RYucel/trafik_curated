@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "kktc-traffic": {
+      "command": "node",
+      "args": [
+        "e:/Projeler/TrafikKazaCurator/src/mcp/stdio.js"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "description": "KKTC Traffic Intelligence Official MCP Server exposing 12 traffic accident research & statistics tools"
+    }
+  }
+}

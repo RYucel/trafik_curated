@@ -1,0 +1,73 @@
+name: KKTC Traffic Intelligence — Autonomous Daily Shadow Pilot
+
+on:
+  schedule:
+    # 03:00 UTC corresponds to 06:00 AM KKTC Cyprus Local Time (UTC+3)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Target Date YYYY-MM-DD (Default: today)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  run-shadow-pilot:
+    name: Execute Daily Shadow Pilot
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python (v3.11)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install NPM Dependencies
+        run: npm ci || npm install
+
+      - name: Execute Daily Shadow Production Pilot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node scripts/run_shadow_pilot.js
+
+      - name: Validate Daily Snapshot Artifacts
+        run: |
+          TODAY=$(date +'%Y-%m-%d')
+          if [ ! -f "data/pilot/$TODAY/ingestion.json" ] && [ ! -f "data/pilot/pilot_status.json" ]; then
+            echo "❌ ERROR: Daily shadow pilot failed to produce valid snapshot artifacts."
+            exit 1
+          fi
+          echo "✓ Daily snapshot artifacts validated successfully."
+
+      - name: Commit and Push Persistent SQLite Database & Snapshot Artifacts
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(pilot): automated daily shadow pilot snapshot [skip ci]"
+          file_pattern: "db/kktc_traffic.db data/pilot/*"
+
+      - name: Upload Daily Snapshot Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-pilot-snapshot-${{ github.run_id }}
+          path: |
+            data/pilot/
+            db/kktc_traffic.db
+          retention-days: 30

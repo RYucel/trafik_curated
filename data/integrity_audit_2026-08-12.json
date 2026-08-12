@@ -1,0 +1,332 @@
+{
+  "audit_timestamp": "2026-08-12T09:51:30.536201",
+  "database_path": "db/kktc_traffic.db",
+  "historical_table_verification": [
+    {
+      "year": 2025,
+      "fatal_accidents": 10,
+      "deaths": 11,
+      "injury_accidents": 98,
+      "injured": 119,
+      "damage_accidents": 356,
+      "total_accidents": 464,
+      "deaths_per_fatal_accident": 1.1,
+      "injured_per_injury_accident": 1.21,
+      "data_period": "2025-01 to 2025-02-27",
+      "created_at": "2026-08-12 06:47:05"
+    }
+  ],
+  "period_2025_jan_jul": {
+    "total_records": 106,
+    "fatal_accident_count": 2,
+    "total_deaths": 2,
+    "fatal_accidents_list": [
+      {
+        "accident_id": "TAK-06907",
+        "event_date": "2025-01-21",
+        "location": "Lefke",
+        "district": "Lefke",
+        "death_count": 1,
+        "source": "TAK (Türk Ajansı Kıbrıs)",
+        "provenance": []
+      },
+      {
+        "accident_id": "TAK-08991",
+        "event_date": "2025-07-02",
+        "location": "Gazimağusa",
+        "district": "Gazimağusa",
+        "death_count": 1,
+        "source": "TAK (Türk Ajansı Kıbrıs)",
+        "provenance": []
+      }
+    ]
+  },
+  "period_2026_jan_jul": {
+    "total_records": 146,
+    "fatal_accident_count": 24,
+    "total_deaths": 27,
+    "fatal_accidents_sample": [
+      {
+        "accident_id": "ACC-2026-1002",
+        "event_date": "2026-01-07",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "TAK-12402",
+        "event_date": "2026-01-18",
+        "location": "Gazimağusa",
+        "district": "Gazimağusa",
+        "death_count": 1,
+        "source": "TAK (Türk Ajansı Kıbrıs)",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1008",
+        "event_date": "2026-01-20",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1011",
+        "event_date": "2026-02-02",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1012",
+        "event_date": "2026-02-15",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 3,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1015",
+        "event_date": "2026-02-23",
+        "location": "İskele",
+        "district": "İskele",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1019",
+        "event_date": "2026-03-05",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1020",
+        "event_date": "2026-03-12",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1021",
+        "event_date": "2026-03-27",
+        "location": "Gazimağusa",
+        "district": "Gazimağusa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1023",
+        "event_date": "2026-04-04",
+        "location": "Lefke",
+        "district": "Lefke",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1025",
+        "event_date": "2026-04-10",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1027",
+        "event_date": "2026-04-16",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1029",
+        "event_date": "2026-04-19",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1032",
+        "event_date": "2026-04-26",
+        "location": "Lefke",
+        "district": "Lefke",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1034",
+        "event_date": "2026-05-06",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "TAK-14621",
+        "event_date": "2026-05-08",
+        "location": "Lefke",
+        "district": "Lefke",
+        "death_count": 1,
+        "source": "TAK (Türk Ajansı Kıbrıs)",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1036",
+        "event_date": "2026-05-11",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "TAK-14655",
+        "event_date": "2026-05-16",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "TAK (Türk Ajansı Kıbrıs)",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1039",
+        "event_date": "2026-05-29",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1041",
+        "event_date": "2026-06-01",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 2,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1042",
+        "event_date": "2026-06-03",
+        "location": "Girne",
+        "district": "Girne",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1058",
+        "event_date": "2026-07-11",
+        "location": "Güzelyurt",
+        "district": "Güzelyurt",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1060",
+        "event_date": "2026-07-19",
+        "location": "Lefkoşa",
+        "district": "Lefkoşa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      },
+      {
+        "accident_id": "ACC-2026-1063",
+        "event_date": "2026-07-26",
+        "location": "Gazimağusa",
+        "district": "Gazimağusa",
+        "death_count": 1,
+        "source": "PGM Polis Basın Subaylığı",
+        "provenance": []
+      }
+    ]
+  },
+  "assertions": {
+    "deaths_2026_equals_27": true,
+    "deaths_2025_equals_2": true,
+    "ytd_label_present_2026": true,
+    "duplicate_fatal_records_found": false,
+    "multi_death_accidents_count": 6
+  },
+  "duplicate_fatal_candidates": [],
+  "multi_death_accidents": [
+    {
+      "accident_id": "ACC-2026-1041",
+      "event_date": "2026-06-01",
+      "location": "Lefkoşa",
+      "district": "Lefkoşa",
+      "death_count": 2,
+      "source": "PGM Polis Basın Subaylığı"
+    },
+    {
+      "accident_id": "ACC-2026-1012",
+      "event_date": "2026-02-15",
+      "location": "Lefkoşa",
+      "district": "Lefkoşa",
+      "death_count": 3,
+      "source": "PGM Polis Basın Subaylığı"
+    },
+    {
+      "accident_id": "TAK-10027",
+      "event_date": "2025-09-20",
+      "location": "Gazimağusa",
+      "district": "Gazimağusa",
+      "death_count": 12,
+      "source": "TAK (Türk Ajansı Kıbrıs)"
+    },
+    {
+      "accident_id": "TAK-05223",
+      "event_date": "2024-11-12",
+      "location": "Güzelyurt",
+      "district": "Güzelyurt",
+      "death_count": 33,
+      "source": "TAK (Türk Ajansı Kıbrıs)"
+    },
+    {
+      "accident_id": "TAK-03440",
+      "event_date": "2024-07-03",
+      "location": "Lefke",
+      "district": "Lefke",
+      "death_count": 4,
+      "source": "TAK (Türk Ajansı Kıbrıs)"
+    },
+    {
+      "accident_id": "TAK-01662",
+      "event_date": "2024-04-18",
+      "location": "Güzelyurt",
+      "district": "Güzelyurt",
+      "death_count": 19,
+      "source": "TAK (Türk Ajansı Kıbrıs)"
+    }
+  ],
+  "mathematical_compare_periods": {
+    "period_a_2026_deaths": 27,
+    "period_b_2025_deaths": 2,
+    "absolute_difference": 25,
+    "formula": "((deaths_2026 - deaths_2025) / deaths_2025) * 100",
+    "calculated_percentage_change": "1250.00%"
+  }
+}

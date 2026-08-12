@@ -1,0 +1,15 @@
+{
+  "pilot_start_date": "2026-08-12",
+  "current_day": 1,
+  "days_completed": 1,
+  "days_pending": 6,
+  "total_days": 7,
+  "latest_run_status": "VERIFIED_RUN",
+  "telegram_mode": "SHADOW_MODE_GATED",
+  "new_canonical_accidents_day_1": 0,
+  "total_canonical_accidents_db": 513,
+  "total_errors": 0,
+  "total_conflicts": 0,
+  "total_unverified": 1,
+  "last_snapshot": "data/pilot/2026-08-12"
+}

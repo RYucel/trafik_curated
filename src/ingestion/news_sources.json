@@ -1,0 +1,78 @@
+[
+  {
+    "id": "kibrispostasi",
+    "name": "Kıbrıs Postası",
+    "website": "https://www.kibrispostasi.com",
+    "feed_url": "https://www.kibrispostasi.com/rss.xml",
+    "type": "rss",
+    "enabled": true,
+    "priority": "high",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Genel", "Asayiş", "Trafik"],
+    "last_checked": "2026-08-12T10:00:00Z"
+  },
+  {
+    "id": "yeniduzen",
+    "name": "Yenidüzen",
+    "website": "https://www.yeniduzen.com",
+    "feed_url": "https://www.yeniduzen.com/rss",
+    "type": "rss",
+    "enabled": true,
+    "priority": "high",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Gündem", "Toplum"],
+    "last_checked": "2026-08-12T10:00:00Z"
+  },
+  {
+    "id": "kibrisgazetesi_adli",
+    "name": "Kıbrıs Gazetesi (Adli Haberler)",
+    "website": "https://www.kibrisgazetesi.com",
+    "feed_url": "https://www.kibrisgazetesi.com/rss/adli-haberler/15",
+    "type": "rss",
+    "enabled": false,
+    "priority": "high",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Adli Haberler"],
+    "notes": "CONFIG_REQUIRED: Inspected website. RSS endpoint returned 404.",
+    "last_checked": null
+  },
+  {
+    "id": "kibrisgazetesi_kibris",
+    "name": "Kıbrıs Gazetesi (Kıbrıs)",
+    "website": "https://www.kibrisgazetesi.com",
+    "feed_url": "https://www.kibrisgazetesi.com/rss/kibris/1",
+    "type": "rss",
+    "enabled": false,
+    "priority": "high",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Kıbrıs"],
+    "notes": "CONFIG_REQUIRED: Inspected website. RSS endpoint returned 404.",
+    "last_checked": null
+  },
+  {
+    "id": "kibrisgazetesi_genel",
+    "name": "Kıbrıs Gazetesi (Genel)",
+    "website": "https://www.kibrisgazetesi.com",
+    "feed_url": "https://www.kibrisgazetesi.com/rss/genel",
+    "type": "rss",
+    "enabled": false,
+    "priority": "medium",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Genel"],
+    "notes": "CONFIG_REQUIRED: Inspected website. RSS endpoint returned HTML page.",
+    "last_checked": null
+  },
+  {
+    "id": "haberkibris",
+    "name": "Haber Kıbrıs",
+    "website": "https://haberkibris.com",
+    "feed_url": "https://haberkibris.com/rss",
+    "type": "rss",
+    "enabled": false,
+    "priority": "medium",
+    "source_tier": "TIER_3_ESTABLISHED_MEDIA",
+    "categories": ["Gündem"],
+    "notes": "CONFIG_REQUIRED: Inspected website. No machine-readable feed available.",
+    "last_checked": null
+  }
+]
