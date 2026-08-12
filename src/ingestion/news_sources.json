@@ -66,13 +66,13 @@
     "id": "haberkibris",
     "name": "Haber Kıbrıs",
     "website": "https://haberkibris.com",
-    "feed_url": "https://haberkibris.com/rss",
+    "feed_url": "https://haberkibris.com/rss.php",
     "type": "rss",
-    "enabled": false,
-    "priority": "medium",
+    "enabled": true,
+    "priority": "high",
     "source_tier": "TIER_3_ESTABLISHED_MEDIA",
-    "categories": ["Gündem"],
-    "notes": "CONFIG_REQUIRED: Inspected website. No machine-readable feed available.",
-    "last_checked": null
+    "categories": ["Gündem", "Kıbrıs", "Trafik"],
+    "notes": "Verified live RSS 2.0 feed at https://haberkibris.com/rss.php.",
+    "last_checked": "2026-08-12T12:00:00Z"
   }
 ]
