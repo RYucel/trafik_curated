@@ -8,6 +8,17 @@ function generateHash(text) {
   return crypto.createHash('md5').update(text).digest('hex');
 }
 
+function normalizeIsoDate(...candidates) {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const text = String(candidate).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().substring(0, 10);
+  }
+  return new Date().toISOString().substring(0, 10);
+}
+
 export class AccidentExtractor {
   constructor() {
     this.llm = new LLMProvider();
@@ -89,8 +100,17 @@ Return strictly JSON:
         return { status: 'AGGREGATE_REPORT', record_type: 'AGGREGATE_TRAFFIC_STATISTICS', extracted };
       }
 
+      if (recordType === 'GENERAL_TRAFFIC_NEWS') {
+        console.log(`[AccidentExtractor] Rejected non-accident article "${article.title}" after structured extraction`);
+        executeDb(
+          "UPDATE news_articles SET processing_status = 'REJECTED', traffic_relevance = 0, error_message = NULL WHERE id = ?",
+          [article.id]
+        );
+        return { status: 'NOT_ACCIDENT', record_type: 'GENERAL_TRAFFIC_NEWS', extracted };
+      }
+
       // Default date to article date if missing
-      const eventDate = extracted.event_date || (article.published_at ? article.published_at.substring(0, 10) : new Date().toISOString().substring(0, 10));
+      const eventDate = normalizeIsoDate(extracted.event_date, article.published_at);
       const district = extracted.district || 'Lefkoşa';
       const fatal = extracted.fatal ? 1 : (extracted.death_count > 0 ? 1 : 0);
       const deathCount = extracted.death_count || 0;

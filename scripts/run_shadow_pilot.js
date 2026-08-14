@@ -96,6 +96,9 @@ async function executeDailyShadowPilot(targetDate = null) {
         aggregateReportCount++;
       } else if (extractRes.status === 'REVIEW_REQUIRED') {
         extractionReviewRequiredCount++;
+      } else if (extractRes.status === 'NOT_ACCIDENT') {
+        relevantArticleCount--;
+        rejectedCandidates.push({ title: article.title, url: article.url, reason: 'LLM_CONFIRMED_NOT_ACCIDENT' });
       }
     } catch (err) {
       runErrors.push({
