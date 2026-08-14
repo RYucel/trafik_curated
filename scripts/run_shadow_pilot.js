@@ -46,7 +46,10 @@ async function executeDailyShadowPilot(targetDate = null) {
   let newCanonicalCount = 0;
   let attachedExistingCount = 0;
   let aggregateReportCount = 0;
+  let trafficCandidateCount = 0;
+  let relevantArticleCount = 0;
   let rejectedCandidates = [];
+  const runErrors = [];
 
   for (const article of discoveredArticles) {
     const filterRes = isCandidateTrafficArticle(article.title, article.description);
@@ -57,21 +60,38 @@ async function executeDailyShadowPilot(targetDate = null) {
       continue;
     }
 
-    const isRel = await classifier.classifyArticle(article);
-    if (!isRel) {
+    trafficCandidateCount++;
+
+    const relevanceResult = await classifier.classifyArticle(article);
+    if (!relevanceResult.is_traffic_accident) {
       rejectedCandidates.push({ title: article.title, url: article.url, reason: 'GENERAL_TRAFFIC' });
       continue;
     }
 
-    const fullText = await fetcher.fetchArticleText(article.url);
-    const extractRes = await extractor.extractAccidentFromArticle(article, fullText);
+    relevantArticleCount++;
 
-    if (extractRes.status === 'NEW_RECORD') {
-      newCanonicalCount++;
-    } else if (extractRes.status === 'ATTACHED_EXISTING') {
-      attachedExistingCount++;
-    } else if (extractRes.status === 'AGGREGATE_REPORT') {
-      aggregateReportCount++;
+    try {
+      const fullText = await fetcher.fetchArticleContent(article);
+      const extractRes = await extractor.extractAccidentFromArticle(article, fullText);
+
+      if (extractRes.status === 'NEW_RECORD') {
+        newCanonicalCount++;
+      } else if (extractRes.status === 'ATTACHED_EXISTING') {
+        attachedExistingCount++;
+      } else if (extractRes.status === 'AGGREGATE_REPORT') {
+        aggregateReportCount++;
+      }
+    } catch (err) {
+      runErrors.push({
+        article_id: article.id,
+        title: article.title,
+        url: article.url,
+        error: err.message
+      });
+      executeDb(
+        "UPDATE news_articles SET processing_status = 'ERROR', error_message = ? WHERE id = ?",
+        [err.message, article.id]
+      );
     }
   }
 
@@ -81,13 +101,13 @@ async function executeDailyShadowPilot(targetDate = null) {
     started_at: new Date(startTime).toISOString(),
     completed_at: new Date().toISOString(),
     execution_time_ms: Date.now() - startTime,
-    feeds_checked: collectResult.total_sources,
-    feeds_failed: collectResult.failed_sources,
-    articles_seen: collectResult.total_articles,
-    new_articles: discoveredArticles.length,
-    traffic_candidates: queryDb("SELECT COUNT(*) as cnt FROM news_articles WHERE traffic_relevance = 1")[0]?.cnt || 0,
-    relevant_articles: queryDb("SELECT COUNT(*) as cnt FROM news_articles WHERE traffic_relevance = 1")[0]?.cnt || 0,
-    extraction_candidates_this_run: discoveredArticles.length,
+    feeds_checked: collectResult.feeds_checked,
+    feeds_failed: collectResult.feeds_failed,
+    articles_seen: collectResult.total_articles_seen,
+    new_articles: collectResult.total_new_articles,
+    traffic_candidates: trafficCandidateCount,
+    relevant_articles: relevantArticleCount,
+    extraction_candidates_this_run: relevantArticleCount,
     individual_accidents_extracted_this_run: newCanonicalCount,
     aggregate_reports_detected_this_run: aggregateReportCount,
     duplicates_detected_this_run: attachedExistingCount,
@@ -142,12 +162,43 @@ async function executeDailyShadowPilot(targetDate = null) {
   fs.writeFileSync(path.join(snapshotDir, 'REVIEW_QUEUE.md'), reviewMd);
 
   // 8. Errors log
-  fs.writeFileSync(path.join(snapshotDir, 'errors.json'), JSON.stringify([], null, 2));
+  fs.writeFileSync(path.join(snapshotDir, 'errors.json'), JSON.stringify(runErrors, null, 2));
 
   // 9. Enforce SHADOW MODE (Zero public Telegram publication)
   const bot = new TelegramBotService();
   const shadowBroadcast = await bot.sendDailyBroadcast(false);
   console.log(`[SHADOW PILOT] Daily Telegram Broadcast Gated: Status = ${shadowBroadcast.status}`);
+
+  // 10. Advance the seven-day pilot from persisted daily snapshots.
+  const pilotRoot = path.join(process.cwd(), 'data', 'pilot');
+  const completedSnapshotDates = fs.readdirSync(pilotRoot, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(entry.name))
+    .filter(entry => fs.existsSync(path.join(pilotRoot, entry.name, 'ingestion.json')))
+    .map(entry => entry.name)
+    .sort();
+  const totalPilotDays = 7;
+  const daysCompleted = Math.min(totalPilotDays, completedSnapshotDates.length);
+  const previousStatusPath = path.join(pilotRoot, 'pilot_status.json');
+  const previousStatus = fs.existsSync(previousStatusPath)
+    ? JSON.parse(fs.readFileSync(previousStatusPath, 'utf8'))
+    : {};
+  const pilotStatus = {
+    ...previousStatus,
+    pilot_start_date: completedSnapshotDates[0] || dateStr,
+    current_day: daysCompleted,
+    days_completed: daysCompleted,
+    days_pending: Math.max(0, totalPilotDays - daysCompleted),
+    total_days: totalPilotDays,
+    latest_run_status: runErrors.length === 0 ? 'VERIFIED_RUN' : 'COMPLETED_WITH_ERRORS',
+    telegram_mode: 'SHADOW_MODE_GATED',
+    latest_new_canonical_accidents: newCanonicalCount,
+    total_canonical_accidents_db: metrics.total_canonical_accidents,
+    total_errors: runErrors.length,
+    total_conflicts: metrics.conflicts,
+    total_unverified: metrics.unverified_records,
+    last_snapshot: `data/pilot/${dateStr}`
+  };
+  fs.writeFileSync(previousStatusPath, JSON.stringify(pilotStatus, null, 2));
 
   console.log(`✓ Daily Shadow Pilot Execution completed in ${metrics.execution_time_ms}ms.`);
   console.log(`✓ Snapshot saved to ${snapshotDir}`);

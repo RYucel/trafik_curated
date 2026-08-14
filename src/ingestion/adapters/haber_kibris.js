@@ -9,7 +9,7 @@ export class HaberKibrisAdapter {
     this.sourceId = 'haberkibris';
     this.sourceName = 'Haber Kıbrıs';
     this.baseUrl = 'https://haberkibris.com';
-    this.feedUrl = 'https://haberkibris.com/rss';
+    this.feedUrl = 'https://haberkibris.com/rss.php';
   }
 
   async discoverArticles() {
