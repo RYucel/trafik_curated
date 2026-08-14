@@ -49,9 +49,11 @@ async function executeDailyShadowPilot(targetDate = null) {
       AND relevance_score >= 0.9
   `);
 
-  // 2. Discover unprocessed articles
+  // 2. Discover unprocessed articles and retry real articles that were safely
+  // deferred while no external extraction provider was configured.
   const discoveredArticles = queryDb(`
-    SELECT * FROM news_articles WHERE processing_status = 'DISCOVERED'
+    SELECT * FROM news_articles
+    WHERE processing_status IN ('DISCOVERED', 'REVIEW_REQUIRED')
   `);
 
   let newCanonicalCount = 0;

@@ -12,6 +12,10 @@ assert.ok(
   !pilotSource.includes('fetcher.fetchArticleText('),
   'Shadow pilot must not call the removed fetchArticleText API'
 );
+assert.ok(
+  pilotSource.includes("processing_status IN ('DISCOVERED', 'REVIEW_REQUIRED')"),
+  'Shadow pilot must retry real articles deferred before an LLM key was configured'
+);
 
 const fetcher = new ArticleFetcher();
 const fixtureText = await fetcher.fetchArticleContent({
