@@ -1,18 +1,18 @@
 {
   "date": "2026-08-14",
-  "started_at": "2026-08-14T05:04:32.229Z",
-  "completed_at": "2026-08-14T05:04:43.038Z",
-  "execution_time_ms": 10809,
+  "started_at": "2026-08-14T05:16:06.563Z",
+  "completed_at": "2026-08-14T05:16:16.358Z",
+  "execution_time_ms": 9795,
   "feeds_checked": 3,
   "feeds_failed": 0,
   "articles_seen": 80,
   "new_articles": 0,
-  "traffic_candidates": 10,
-  "relevant_articles": 4,
-  "extraction_candidates_this_run": 4,
+  "traffic_candidates": 0,
+  "relevant_articles": 0,
+  "extraction_candidates_this_run": 0,
   "individual_accidents_extracted_this_run": 0,
   "aggregate_reports_detected_this_run": 0,
-  "extraction_review_required_this_run": 4,
+  "extraction_review_required_this_run": 0,
   "duplicates_detected_this_run": 0,
   "new_canonical_accidents_this_run": 0,
   "total_canonical_accidents": 513,
@@ -21,8 +21,8 @@
   "unverified_records": 0,
   "review_required": 0,
   "llm_usage": {
-    "provider": "Gemini (with Cerebras / Heuristic Fallback)",
-    "model": "gemini-1.5-flash",
-    "estimated_api_cost_usd": "UNKNOWN"
+    "provider": "not_used",
+    "model": null,
+    "estimated_api_cost_usd": "0.00"
   }
 }
