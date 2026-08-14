@@ -36,7 +36,7 @@ Respond strictly in JSON format:
 }`;
 
     try {
-      const responseText = await this.llm.generateText(prompt, 'Cerebras');
+      const responseText = await this.llm.generateText(prompt, { temperature: 0.1 });
       
       // Parse JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);

@@ -58,7 +58,7 @@ Return strictly JSON:
 }`;
 
     try {
-      const responseText = await this.llm.generateText(prompt, 'Gemini');
+      const responseText = await this.llm.generateText(prompt, { temperature: 0.1 });
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       const extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
 
@@ -69,6 +69,19 @@ Return strictly JSON:
       const recordType = extracted.record_type || 'INDIVIDUAL_ACCIDENT';
       const sourceTierInfo = getSourceTier(article.source_name);
       const sourceTier = sourceTierInfo.code;
+
+      if (extracted.requires_llm_extraction) {
+        console.warn(`[AccidentExtractor] Structured extraction deferred for article ${article.id}: no LLM provider configured.`);
+        executeDb(
+          "UPDATE news_articles SET processing_status = 'REVIEW_REQUIRED', error_message = 'LLM extraction provider not configured' WHERE id = ?",
+          [article.id]
+        );
+        return {
+          status: 'REVIEW_REQUIRED',
+          record_type: recordType,
+          reason: 'LLM extraction provider not configured'
+        };
+      }
 
       if (recordType === 'AGGREGATE_TRAFFIC_STATISTICS') {
         console.log(`[AccidentExtractor] Extracted AGGREGATE TRAFFIC STATISTICS report from "${article.title}"`);

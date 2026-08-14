@@ -95,35 +95,52 @@ export class LLMProvider {
 
   heuristicFallback(prompt) {
     const lower = prompt.toLowerCase();
+
+    // Relevance classification prompts also request JSON. Handle their
+    // contract before the generic extraction JSON fallback below.
+    if (lower.includes('"is_traffic_accident"')) {
+      const title = prompt.match(/^Title:\s*(.*)$/mi)?.[1] || '';
+      const snippet = prompt.match(/^Snippet:\s*(.*)$/mi)?.[1] || '';
+      const articleText = `${title} ${snippet}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/ı/g, 'i');
+
+      const reportsSpecificCrash = /\b(kaza|carpis|carpti|vurdu|devrildi|takla|yaralandi|yaralan|hayatini kaybet|yasamini yitir|kontrolden cik|direksiyon hakimiyet)\b/.test(articleText);
+      const isAggregateOrGeneral = /\b(haftalik|rapor|istatistik|bir haftada|kampanya|sifir can kaybi|denetim|ceza|yasa|yonetmelik)\b/.test(articleText);
+      const isTrafficAccident = reportsSpecificCrash && !isAggregateOrGeneral;
+
+      return JSON.stringify({
+        is_traffic_accident: isTrafficAccident,
+        confidence: isTrafficAccident ? 0.72 : 0.68,
+        reason: isTrafficAccident
+          ? 'Deterministic fallback detected a specific crash event in the article title/snippet'
+          : 'Deterministic fallback classified the item as aggregate or general traffic news',
+        requires_article_fetch: isTrafficAccident
+      });
+    }
     
-    if (lower.includes('record_type') || lower.includes('json') || lower.includes('extract')) {
-      const isAgg = lower.includes('haftalık') || lower.includes('71 kaza');
-      if (isAgg) {
-        return JSON.stringify({
-          record_type: "AGGREGATE_TRAFFIC_STATISTICS",
-          event_date: "2026-08-11",
-          total_accidents_aggregate: 71,
-          death_count: 1,
-          injury_count: 27,
-          confidence: 0.95
-        });
-      }
+    if (lower.includes('record_type') || lower.includes('extract structured')) {
+      // Without an external model, never manufacture event facts. Preserve the
+      // article for human/LLM extraction instead of creating a canonical record.
       return JSON.stringify({
         record_type: "INDIVIDUAL_ACCIDENT",
-        event_date: "2021-05-18",
-        event_time: "10:30",
-        district: "Lefkoşa",
-        location_raw: "Lefkoşa Bedrettin Demirel Caddesi",
-        location_normalized: "Lefkoşa - Bedrettin Demirel Caddesi",
-        road_raw: "Bedrettin Demirel Caddesi",
-        road_normalized: "Bedrettin Demirel Caddesi",
-        fatal: true,
-        death_count: 1,
+        event_date: null,
+        event_time: null,
+        district: null,
+        location_raw: null,
+        location_normalized: null,
+        road_raw: null,
+        road_normalized: null,
+        fatal: false,
+        death_count: 0,
         injury_count: 0,
-        reported_cause: "Otomobil ile motosikletin çarpışması",
-        cause_category: "MOTORCYCLE",
-        vehicle_types: ["Otomobil", "Motosiklet"],
-        confidence: 0.95
+        reported_cause: null,
+        cause_category: "UNKNOWN",
+        vehicle_types: [],
+        confidence: 0,
+        requires_llm_extraction: true
       });
     }
 

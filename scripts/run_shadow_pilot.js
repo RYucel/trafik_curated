@@ -38,6 +38,17 @@ async function executeDailyShadowPilot(targetDate = null) {
   await kgAdapter.discoverArticles();
   await hkAdapter.discoverArticles();
 
+  // Recover articles rejected by the former malformed JSON fallback. That
+  // fallback returned extraction confidence (0.95) instead of a relevance
+  // decision, causing valid traffic candidates to be marked REJECTED.
+  executeDb(`
+    UPDATE news_articles
+    SET processing_status = 'DISCOVERED', relevance_score = 0, processed_at = NULL, error_message = NULL
+    WHERE processing_status = 'REJECTED'
+      AND traffic_relevance = 0
+      AND relevance_score >= 0.9
+  `);
+
   // 2. Discover unprocessed articles
   const discoveredArticles = queryDb(`
     SELECT * FROM news_articles WHERE processing_status = 'DISCOVERED'
@@ -46,6 +57,7 @@ async function executeDailyShadowPilot(targetDate = null) {
   let newCanonicalCount = 0;
   let attachedExistingCount = 0;
   let aggregateReportCount = 0;
+  let extractionReviewRequiredCount = 0;
   let trafficCandidateCount = 0;
   let relevantArticleCount = 0;
   let rejectedCandidates = [];
@@ -80,6 +92,8 @@ async function executeDailyShadowPilot(targetDate = null) {
         attachedExistingCount++;
       } else if (extractRes.status === 'AGGREGATE_REPORT') {
         aggregateReportCount++;
+      } else if (extractRes.status === 'REVIEW_REQUIRED') {
+        extractionReviewRequiredCount++;
       }
     } catch (err) {
       runErrors.push({
@@ -110,6 +124,7 @@ async function executeDailyShadowPilot(targetDate = null) {
     extraction_candidates_this_run: relevantArticleCount,
     individual_accidents_extracted_this_run: newCanonicalCount,
     aggregate_reports_detected_this_run: aggregateReportCount,
+    extraction_review_required_this_run: extractionReviewRequiredCount,
     duplicates_detected_this_run: attachedExistingCount,
     new_canonical_accidents_this_run: newCanonicalCount,
     total_canonical_accidents: queryDb("SELECT COUNT(*) as cnt FROM accidents")[0]?.cnt || 0,
