@@ -9,6 +9,7 @@ export class LLMProvider {
     this.geminiKey = process.env.GEMINI_API_KEY || '';
     this.cerebrasKey = process.env.CEREBRAS_API_KEY || '';
     this.preferredProvider = process.env.LLM_PROVIDER || 'gemini'; // 'gemini', 'cerebras', or 'auto'
+    this.lastProvider = 'not_used';
   }
 
   async generateText(prompt, options = {}) {
@@ -16,7 +17,9 @@ export class LLMProvider {
 
     if (this.preferredProvider === 'gemini' && this.geminiKey) {
       try {
-        return await this.callGemini(prompt, systemPrompt, temperature, maxTokens);
+        const result = await this.callGemini(prompt, systemPrompt, temperature, maxTokens);
+        this.lastProvider = 'gemini';
+        return result;
       } catch (err) {
         console.warn('Gemini Provider call failed, attempting fallback:', err.message);
       }
@@ -24,13 +27,16 @@ export class LLMProvider {
 
     if (this.cerebrasKey) {
       try {
-        return await this.callCerebras(prompt, systemPrompt, temperature, maxTokens);
+        const result = await this.callCerebras(prompt, systemPrompt, temperature, maxTokens);
+        this.lastProvider = 'cerebras';
+        return result;
       } catch (err) {
         console.warn('Cerebras Provider call failed, attempting fallback:', err.message);
       }
     }
 
     // Heuristic Fallback
+    this.lastProvider = 'heuristic_fallback';
     return this.heuristicFallback(prompt);
   }
 

@@ -39,4 +39,9 @@ assert.equal(extraction.event_date, null);
 assert.equal(extraction.district, null);
 assert.equal(extraction.death_count, 0);
 
+provider.geminiKey = '';
+provider.cerebrasKey = '';
+await provider.generateText(relevancePrompt('Lefkoşa’da iki araç çarpıştı'));
+assert.equal(provider.lastProvider, 'heuristic_fallback');
+
 console.log('✓ LLM relevance fallback returns the expected classifier contract');

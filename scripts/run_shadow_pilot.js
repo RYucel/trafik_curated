@@ -110,6 +110,12 @@ async function executeDailyShadowPilot(targetDate = null) {
   }
 
   // 3. Gather Ingestion Metrics (Disambiguating Per-Run Delta vs Lifetime DB Totals)
+  const llmProviderStates = [...new Set([
+    classifier.llm.lastProvider,
+    extractor.llm.lastProvider
+  ].filter(provider => provider && provider !== 'not_used'))];
+  const usedExternalLlm = llmProviderStates.some(provider => provider === 'gemini' || provider === 'cerebras');
+
   const metrics = {
     date: dateStr,
     started_at: new Date(startTime).toISOString(),
@@ -133,9 +139,11 @@ async function executeDailyShadowPilot(targetDate = null) {
     unverified_records: queryDb("SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'")[0]?.cnt || 0,
     review_required: queryDb("SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING'")[0]?.cnt || 0,
     llm_usage: {
-      provider: 'Gemini (with Cerebras / Heuristic Fallback)',
-      model: 'gemini-1.5-flash',
-      estimated_api_cost_usd: 'UNKNOWN'
+      provider: llmProviderStates.length > 0 ? llmProviderStates.join(',') : 'not_used',
+      model: llmProviderStates.includes('gemini')
+        ? 'gemini-1.5-flash'
+        : (llmProviderStates.includes('cerebras') ? 'llama3.1-8b' : null),
+      estimated_api_cost_usd: usedExternalLlm ? 'UNKNOWN' : '0.00'
     }
   };
 
