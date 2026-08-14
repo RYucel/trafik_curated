@@ -141,7 +141,7 @@ async function executeDailyShadowPilot(targetDate = null) {
     llm_usage: {
       provider: llmProviderStates.length > 0 ? llmProviderStates.join(',') : 'not_used',
       model: llmProviderStates.includes('gemini')
-        ? 'gemini-1.5-flash'
+        ? classifier.llm.geminiModel
         : (llmProviderStates.includes('cerebras') ? 'llama3.1-8b' : null),
       estimated_api_cost_usd: usedExternalLlm ? 'UNKNOWN' : '0.00'
     }

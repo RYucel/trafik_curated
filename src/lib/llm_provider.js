@@ -9,6 +9,7 @@ export class LLMProvider {
     this.geminiKey = process.env.GEMINI_API_KEY || '';
     this.cerebrasKey = process.env.CEREBRAS_API_KEY || '';
     this.preferredProvider = process.env.LLM_PROVIDER || 'gemini'; // 'gemini', 'cerebras', or 'auto'
+    this.geminiModel = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
     this.lastProvider = 'not_used';
   }
 
@@ -17,7 +18,7 @@ export class LLMProvider {
 
     if (this.preferredProvider === 'gemini' && this.geminiKey) {
       try {
-        const result = await this.callGemini(prompt, systemPrompt, temperature, maxTokens);
+        const result = await this.callGemini(prompt, systemPrompt, maxTokens);
         this.lastProvider = 'gemini';
         return result;
       } catch (err) {
@@ -40,8 +41,8 @@ export class LLMProvider {
     return this.heuristicFallback(prompt);
   }
 
-  async callGemini(prompt, systemPrompt, temperature, maxTokens) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.geminiKey}`;
+  async callGemini(prompt, systemPrompt, maxTokens) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent`;
     const payload = {
       contents: [
         {
@@ -50,14 +51,19 @@ export class LLMProvider {
         }
       ],
       generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens
+        maxOutputTokens: maxTokens,
+        thinkingConfig: {
+          thinkingLevel: 'low'
+        }
       }
     };
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.geminiKey
+      },
       body: JSON.stringify(payload)
     });
 

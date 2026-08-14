@@ -39,6 +39,35 @@ assert.equal(extraction.event_date, null);
 assert.equal(extraction.district, null);
 assert.equal(extraction.death_count, 0);
 
+const originalFetch = globalThis.fetch;
+let capturedRequest;
+globalThis.fetch = async (url, options) => {
+  capturedRequest = { url, options };
+  return {
+    ok: true,
+    json: async () => ({
+      candidates: [{ content: { parts: [{ text: '{"is_traffic_accident":false}' }] } }]
+    })
+  };
+};
+
+try {
+  provider.geminiKey = 'test-secret-key';
+  provider.preferredProvider = 'gemini';
+  await provider.generateText(relevancePrompt('Test haberi'), { temperature: 0.1 });
+
+  assert.match(capturedRequest.url, /gemini-3\.7-flash:generateContent$/);
+  assert.equal(capturedRequest.url.includes('test-secret-key'), false);
+  assert.equal(capturedRequest.options.headers['x-goog-api-key'], 'test-secret-key');
+
+  const geminiPayload = JSON.parse(capturedRequest.options.body);
+  assert.equal('temperature' in geminiPayload.generationConfig, false);
+  assert.equal(geminiPayload.generationConfig.thinkingConfig.thinkingLevel, 'low');
+  assert.equal(provider.lastProvider, 'gemini');
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 provider.geminiKey = '';
 provider.cerebrasKey = '';
 await provider.generateText(relevancePrompt('Lefkoşa’da iki araç çarpıştı'));
