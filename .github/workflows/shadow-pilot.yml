@@ -41,17 +41,25 @@ jobs:
 
       - name: Execute Daily Shadow Production Pilot
         env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          node scripts/run_shadow_pilot.js
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          node scripts/run_shadow_pilot.js "$TARGET_DATE"
 
       - name: Validate Daily Snapshot Artifacts
         run: |
-          TODAY=$(date +'%Y-%m-%d')
-          if [ ! -f "data/pilot/$TODAY/ingestion.json" ] && [ ! -f "data/pilot/pilot_status.json" ]; then
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          for artifact in ingestion.json verification.json statistics.json bulletin.md REVIEW_QUEUE.md errors.json; do
+            if [ ! -f "data/pilot/$TARGET_DATE/$artifact" ]; then
+              echo "❌ ERROR: Missing snapshot artifact: $artifact"
+              exit 1
+            fi
+          done
+          if [ ! -f "data/pilot/$TARGET_DATE/ingestion.json" ]; then
             echo "❌ ERROR: Daily shadow pilot failed to produce valid snapshot artifacts."
             exit 1
           fi

@@ -8,14 +8,14 @@ export class BulletinAgent {
     const pendingUnverified = queryDb(`SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'`)[0]?.cnt || 0;
 
     let safetyClass = 'PUBLIC_SAFE';
-    let safetyReason = 'All statistics and incidents are fully verified.';
+    let safetyReason = 'Tüm istatistikler ve vakalar doğrulanmıştır.';
 
     if (pendingConflicts > 0) {
       safetyClass = 'DO_NOT_PUBLISH';
-      safetyReason = `Critical factual conflict detected (${pendingConflicts} unresolved death/injury count disputes in review queue). Automated publication BLOCKED.`;
+      safetyReason = `Kritik olgusal çelişki tespit edildi (${pendingConflicts} çözülmemiş ölüm/yaralanma sayısı uyuşmazlığı). Otomatik yayın ENGELLENDİ.`;
     } else if (pendingUnverified > 0) {
       safetyClass = 'REVIEW_REQUIRED';
-      safetyReason = `${pendingUnverified} incidents remain unverified and require reviewer confirmation before public release.`;
+      safetyReason = `${pendingUnverified} vaka doğrulanmayı bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.`;
     }
 
     // 2. Fetch 2026 YTD stats
@@ -86,24 +86,24 @@ ${unverifiedItems.length > 0 ? unverifiedItems.map(acc => `- 🟡 **[UNVERIFIED]
 
 ---
 
-## 📊 Historical Context (Dönemsel Karşılaştırma)
+## 📊 Dönemsel Karşılaştırma
 
 - **2026 YTD (Ocak–Temmuz)**: ${deaths2026} Can Kaybı
 - **2025 Aynı Dönem (Ocak–Temmuz)**: ${deaths2025} Can Kaybı (Değişim: ${yoyPct2025 >= 0 ? '+' : ''}${yoyPct2025}%)
 - **2024 Aynı Dönem (Ocak–Temmuz)**: ${deaths2024} Can Kaybı (Değişim: ${yoyPct2024 >= 0 ? '+' : ''}${yoyPct2024}%)
 
-*Not: Karşılaştırmalar strictly aynı tarih aralıkları (Ocak–Temmuz) ile yapılmıştır. 2026 YTD verisi 2025 tam yıl toplamı ile kıyaslanamaz.*
+*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (Ocak–Temmuz) ile yapılmıştır. 2026 YTD verisi 2025 tam yıl toplamı ile kıyaslanamaz.*
 
 ---
 
-## 🤖 AI Inference & Risk Analizi (Çıkarım)
+## 🤖 Yapay Zekâ Çıkarımı ve Risk Analizi
 
 - Aşırı hız ve alkol kullanımı doğrulanmış vakalarda başlıca etkenler arasında rapor edilmiştir.
 - *Veri Notu: Raporlanan kaza nedenleri tek başına yıllık can kaybı artışının kesin nedeni olduğunu kanıtlamamaktadır (Gözlemlenen Veri vs Çıkarım ayrımı).*
 
 ---
 
-## 🔎 Sources & Provenance
+## 🔎 Kaynaklar ve Köken Bilgisi
 
 1. **TIER 1 (Official)**: KKTC PGM Polis Basın Subaylığı İstatistikleri
 2. **TIER 2 (Agency)**: TAK (Türk Ajansı Kıbrıs) Arşivi
@@ -111,7 +111,7 @@ ${unverifiedItems.length > 0 ? unverifiedItems.map(acc => `- 🟡 **[UNVERIFIED]
 
 ---
 
-## Methodology Note
+## Yöntem Notu
 
 Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve kaynak hiyerarşisine uygun olarak üretilmiştir. Haber raporları ile resmi istatistikler farklı kaynak katmanlarına ('TIER_1' - 'TIER_4') tabidir.
 `.trim();

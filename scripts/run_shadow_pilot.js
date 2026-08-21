@@ -13,8 +13,41 @@ import { TelegramBotService } from '../src/telegram/bot.js';
 import { KibrisGazetesiAdapter } from '../src/ingestion/adapters/kibris_gazetesi.js';
 import { HaberKibrisAdapter } from '../src/ingestion/adapters/haber_kibris.js';
 
+const TOTAL_PILOT_DAYS = 7;
+
+function resolveTargetDate(targetDate = null) {
+  const dateStr = targetDate || process.env.PILOT_TARGET_DATE || new Date().toISOString().substring(0, 10);
+  const parsed = new Date(`${dateStr}T00:00:00Z`);
+  const today = new Date().toISOString().substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || Number.isNaN(parsed.valueOf()) || parsed.toISOString().substring(0, 10) !== dateStr) {
+    throw new Error(`Invalid pilot date "${dateStr}". Use YYYY-MM-DD.`);
+  }
+  if (dateStr < today) {
+    throw new Error(`Historical pilot date "${dateStr}" is not allowed: it would label live sources as historical evidence.`);
+  }
+  if (dateStr > today) {
+    throw new Error(`Future pilot date "${dateStr}" is not allowed.`);
+  }
+  return dateStr;
+}
+
+function getPlannedPilotDates(pilotStartDate) {
+  const start = new Date(`${pilotStartDate}T00:00:00Z`);
+  return Array.from({ length: TOTAL_PILOT_DAYS }, (_, index) => {
+    const day = new Date(start);
+    day.setUTCDate(start.getUTCDate() + index);
+    return day.toISOString().substring(0, 10);
+  });
+}
+
+function isCompleteSnapshot(pilotRoot, date) {
+  const snapshotDir = path.join(pilotRoot, date);
+  return ['ingestion.json', 'verification.json', 'statistics.json', 'bulletin.md', 'REVIEW_QUEUE.md', 'errors.json']
+    .every(file => fs.existsSync(path.join(snapshotDir, file)));
+}
+
 async function executeDailyShadowPilot(targetDate = null) {
-  const dateStr = targetDate || new Date().toISOString().substring(0, 10);
+  const dateStr = resolveTargetDate(targetDate);
   const snapshotDir = path.join(process.cwd(), 'data', 'pilot', dateStr);
 
   if (!fs.existsSync(snapshotDir)) {
@@ -199,25 +232,46 @@ async function executeDailyShadowPilot(targetDate = null) {
 
   // 10. Advance the seven-day pilot from persisted daily snapshots.
   const pilotRoot = path.join(process.cwd(), 'data', 'pilot');
+  const restartPilot = process.argv.includes('--restart') || process.env.PILOT_RESTART === 'true';
   const completedSnapshotDates = fs.readdirSync(pilotRoot, { withFileTypes: true })
     .filter(entry => entry.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(entry.name))
-    .filter(entry => fs.existsSync(path.join(pilotRoot, entry.name, 'ingestion.json')))
+    .filter(entry => isCompleteSnapshot(pilotRoot, entry.name))
     .map(entry => entry.name)
     .sort();
-  const totalPilotDays = 7;
-  const daysCompleted = Math.min(totalPilotDays, completedSnapshotDates.length);
   const previousStatusPath = path.join(pilotRoot, 'pilot_status.json');
   const previousStatus = fs.existsSync(previousStatusPath)
     ? JSON.parse(fs.readFileSync(previousStatusPath, 'utf8'))
     : {};
+  const pilotStartDate = restartPilot ? dateStr : (previousStatus.pilot_start_date || dateStr);
+  const plannedPilotDates = getPlannedPilotDates(pilotStartDate);
+  const completedPilotDates = plannedPilotDates.filter(day => completedSnapshotDates.includes(day));
+  const today = new Date().toISOString().substring(0, 10);
+  const missedPilotDates = plannedPilotDates.filter(day => day < today && !completedPilotDates.includes(day));
+  const daysCompleted = completedPilotDates.length;
+  const pilotState = daysCompleted === TOTAL_PILOT_DAYS
+    ? 'PILOT_COMPLETED'
+    : (missedPilotDates.length > 0 ? 'PILOT_INCOMPLETE_MISSED_DAYS' : 'PILOT_IN_PROGRESS');
   const pilotStatus = {
     ...previousStatus,
-    pilot_start_date: completedSnapshotDates[0] || dateStr,
+    pilot_start_date: pilotStartDate,
+    ...(restartPilot && previousStatus.pilot_start_date ? {
+      previous_pilot: {
+        pilot_start_date: previousStatus.pilot_start_date,
+        pilot_state: previousStatus.pilot_state || 'PILOT_INCOMPLETE_MISSED_DAYS',
+        days_completed: previousStatus.days_completed || 0,
+        missed_pilot_dates: previousStatus.missed_pilot_dates || []
+      }
+    } : {}),
     current_day: daysCompleted,
     days_completed: daysCompleted,
-    days_pending: Math.max(0, totalPilotDays - daysCompleted),
-    total_days: totalPilotDays,
-    latest_run_status: runErrors.length === 0 ? 'VERIFIED_RUN' : 'COMPLETED_WITH_ERRORS',
+    days_pending: Math.max(0, TOTAL_PILOT_DAYS - daysCompleted),
+    total_days: TOTAL_PILOT_DAYS,
+    pilot_state: pilotState,
+    planned_pilot_dates: plannedPilotDates,
+    missed_pilot_dates: missedPilotDates,
+    latest_run_status: runErrors.length === 0 && collectResult.feeds_failed === 0
+      ? 'VERIFIED_RUN'
+      : 'COMPLETED_WITH_ERRORS',
     telegram_mode: 'SHADOW_MODE_GATED',
     latest_new_canonical_accidents: newCanonicalCount,
     total_canonical_accidents_db: metrics.total_canonical_accidents,
@@ -234,7 +288,7 @@ async function executeDailyShadowPilot(targetDate = null) {
   return metrics;
 }
 
-executeDailyShadowPilot().catch(err => {
+executeDailyShadowPilot(process.argv.find(arg => /^\d{4}-\d{2}-\d{2}$/.test(arg))).catch(err => {
   console.error('Shadow Pilot Execution error:', err);
   process.exit(1);
 });

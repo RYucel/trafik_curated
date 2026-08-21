@@ -4,6 +4,7 @@ import { ArticleFetcher } from '../src/ingestion/article_fetcher.js';
 
 const pilotSource = fs.readFileSync(new URL('../scripts/run_shadow_pilot.js', import.meta.url), 'utf8');
 const extractorSource = fs.readFileSync(new URL('../src/ingestion/accident_extractor.js', import.meta.url), 'utf8');
+const workflowSource = fs.readFileSync(new URL('../.github/workflows/shadow-pilot.yml', import.meta.url), 'utf8');
 
 assert.ok(
   pilotSource.includes('fetcher.fetchArticleContent(article)'),
@@ -21,6 +22,25 @@ assert.ok(
   extractorSource.includes("recordType === 'GENERAL_TRAFFIC_NEWS'") &&
     extractorSource.includes("status: 'NOT_ACCIDENT'"),
   'Structured extraction must not turn general or non-traffic news into canonical accidents'
+);
+assert.ok(
+  pilotSource.includes('PILOT_INCOMPLETE_MISSED_DAYS') &&
+    pilotSource.includes('missed_pilot_dates'),
+  'Pilot status must report missed planned days instead of counting unrelated snapshot dates'
+);
+assert.ok(
+  pilotSource.includes("process.argv.find(arg => /^\\d{4}-\\d{2}-\\d{2}$/.test(arg))"),
+  'Pilot must accept the date forwarded by the manual workflow dispatch'
+);
+assert.ok(
+  pilotSource.includes("runErrors.length === 0 && collectResult.feeds_failed === 0"),
+  'A pilot run with failed feeds must not be marked VERIFIED_RUN'
+);
+assert.ok(
+  workflowSource.includes('TARGET_DATE="${PILOT_TARGET_DATE:-$(date +\'%Y-%m-%d\')}"') &&
+    workflowSource.includes('verification.json') &&
+    workflowSource.includes('data/pilot/$TARGET_DATE/ingestion.json'),
+  'Workflow must validate every requested snapshot artifact, not merely any status file'
 );
 
 const fetcher = new ArticleFetcher();

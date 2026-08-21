@@ -22,14 +22,19 @@ function inspectPilotStatus() {
   console.log(`📌 Telegram Mode:    ${globalStatus.telegram_mode || 'SHADOW_MODE_GATED'}`);
   console.log(`📌 Days Completed:   ${globalStatus.days_completed || 0} / ${globalStatus.total_days || 7}`);
   console.log(`📌 Latest Status:    ${globalStatus.latest_run_status || 'NOT_RUN'}\n`);
+  console.log(`📌 Pilot Lifecycle:  ${globalStatus.pilot_state || 'PILOT_IN_PROGRESS'}`);
+  if (globalStatus.missed_pilot_dates?.length) {
+    console.log(`📌 Missed Days:      ${globalStatus.missed_pilot_dates.join(', ')}`);
+  }
 
-  const startDate = new Date('2026-08-12');
+  const plannedDates = globalStatus.planned_pilot_dates || Array.from({ length: 7 }, (_, index) => {
+    const start = new Date(`${globalStatus.pilot_start_date || '2026-08-12'}T00:00:00Z`);
+    start.setUTCDate(start.getUTCDate() + index);
+    return start.toISOString().substring(0, 10);
+  });
   const days = [];
 
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
-    const dateStr = d.toISOString().substring(0, 10);
+  for (const [i, dateStr] of plannedDates.entries()) {
     const snapshotPath = path.join(pilotDir, dateStr, 'ingestion.json');
 
     let dayStatus = 'PENDING_RUN';
