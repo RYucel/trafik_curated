@@ -1,0 +1,23 @@
+{
+  "verified_records": 74,
+  "media_corroborated": 0,
+  "unverified_records": 14,
+  "conflicts": 1,
+  "pending_review_items": [
+    {
+      "review_id": 18,
+      "accident_id": "ACC-20260812-8647",
+      "issue_type": "CONFLICTING_DEATH_COUNT",
+      "title": "Can Kaybı / Yaralı Sayısı Çelişkisi (Haber Kıbrıs)",
+      "description": "Mevcut kayıt: 0 ölü, 0 yaralı (TIER_3_ESTABLISHED_MEDIA). Yeni kaynak (Haber Kıbrıs - TIER_3_ESTABLISHED_MEDIA): 1 ölü, 0 yaralı.",
+      "status": "PENDING",
+      "match_confidence": "MEDIUM",
+      "source_a": "Yenidüzen (0 Ölü, 0 Yaralı)",
+      "source_b": "Haber Kıbrıs (1 Ölü, 0 Yaralı)",
+      "details_json": "{\"new_source_url\":\"https://haberkibris.com/guzelyurt-lefkosa-yolundaki-kazada-agir-yaralanan-kadin-hayatini-kaybetti-1525-2026-08-23.html\",\"extracted_data\":{\"record_type\":\"INDIVIDUAL_ACCIDENT\",\"event_date\":\"2026-08-12\",\"event_time\":\"16:00\",\"district\":\"Lefkoşa\",\"location_raw\":\"Güzelyurt-Lefkoşa Anayolu’nun 14-15’inci kilometreleri arasında\",\"location_normalized\":\"Güzelyurt - Lefkoşa Anayolu km 14-15\",\"road_raw\":\"Güzelyurt-Lefkoşa Anayolu\",\"road_normalized\":\"Güzelyurt - Lefkoşa Anayolu\",\"fatal\":true,\"death_count\":1,\"injury_count\":0,\"total_accidents_aggregate\":null,\"reported_cause\":null,\"cause_category\":\"UNKNOWN\",\"vehicle_types\":[\"car\"],\"confidence\":0.95},\"source_tier\":\"TIER_3_ESTABLISHED_MEDIA\"}",
+      "created_at": "2026-08-24 03:56:53",
+      "resolved_at": null,
+      "resolved_by": null
+    }
+  ]
+}
