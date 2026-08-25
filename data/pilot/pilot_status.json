@@ -11,8 +11,8 @@
   "total_errors": 0,
   "total_conflicts": 1,
   "total_unverified": 14,
-  "last_snapshot": "data/pilot/2026-08-24",
-  "latest_new_canonical_accidents": 2,
+  "last_snapshot": "data/pilot/2026-08-25",
+  "latest_new_canonical_accidents": 0,
   "pilot_state": "PILOT_INCOMPLETE_MISSED_DAYS",
   "planned_pilot_dates": [
     "2026-08-12",
