@@ -1,13 +1,13 @@
 {
   "date": "2026-08-27",
-  "started_at": "2026-08-27T06:16:32.196Z",
-  "completed_at": "2026-08-27T06:16:44.045Z",
-  "execution_time_ms": 11849,
+  "started_at": "2026-08-27T13:53:37.931Z",
+  "completed_at": "2026-08-27T13:54:04.367Z",
+  "execution_time_ms": 26436,
   "feeds_checked": 3,
   "feeds_failed": 0,
   "articles_seen": 80,
-  "new_articles": 0,
-  "traffic_candidates": 0,
+  "new_articles": 60,
+  "traffic_candidates": 7,
   "relevant_articles": 0,
   "extraction_candidates_this_run": 0,
   "individual_accidents_extracted_this_run": 0,
@@ -21,8 +21,8 @@
   "unverified_records": 0,
   "review_required": 0,
   "llm_usage": {
-    "provider": "not_used",
-    "model": null,
-    "estimated_api_cost_usd": "0.00"
+    "provider": "gemini",
+    "model": "gemini-3.7-flash",
+    "estimated_api_cost_usd": "UNKNOWN"
   }
 }
