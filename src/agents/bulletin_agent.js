@@ -2,10 +2,11 @@
 import { queryDb } from '../lib/db.js';
 
 export class BulletinAgent {
-  static async generateDailyBulletin(targetDate = '2026-08-12') {
+  static async generateDailyBulletin(targetDate = new Date().toISOString().substring(0, 10)) {
     // 1. Check for Pending Conflict Items in Review Queue
     const pendingConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_DEATH_COUNT'`)[0]?.cnt || 0;
     const pendingUnverified = queryDb(`SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'`)[0]?.cnt || 0;
+    const pendingExtractionReviews = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'LLM_EXTRACTION_UNAVAILABLE'`)[0]?.cnt || 0;
 
     let safetyClass = 'PUBLIC_SAFE';
     let safetyReason = 'Tüm istatistikler ve vakalar doğrulanmıştır.';
@@ -16,6 +17,9 @@ export class BulletinAgent {
     } else if (pendingUnverified > 0) {
       safetyClass = 'REVIEW_REQUIRED';
       safetyReason = `${pendingUnverified} vaka doğrulanmayı bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.`;
+    } else if (pendingExtractionReviews > 0) {
+      safetyClass = 'REVIEW_REQUIRED';
+      safetyReason = `${pendingExtractionReviews} trafik adayı yapılandırılmış çıkarım bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.`;
     }
 
     // 2. Fetch 2026 YTD stats

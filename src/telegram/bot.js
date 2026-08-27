@@ -71,8 +71,8 @@ export class TelegramBotService {
     }
   }
 
-  async sendDailyBroadcast(isApprovedByHuman = false) {
-    const bulletin = await BulletinAgent.generateDailyBulletin();
+  async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined) {
+    const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
 
     if (bulletin.safety_class === 'DO_NOT_PUBLISH') {
       console.warn(`[TelegramBot] BROADCAST BLOCKED: ${bulletin.safety_reason}`);

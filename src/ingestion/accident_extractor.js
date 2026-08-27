@@ -87,6 +87,25 @@ Return strictly JSON:
           "UPDATE news_articles SET processing_status = 'REVIEW_REQUIRED', error_message = 'LLM extraction provider not configured' WHERE id = ?",
           [article.id]
         );
+
+        const reviewAccidentId = `NEWS-${article.id}`;
+        const existingReview = queryDb(
+          "SELECT review_id FROM review_queue WHERE accident_id = ? AND status = 'PENDING' LIMIT 1",
+          [reviewAccidentId]
+        );
+        if (existingReview.length === 0) {
+          executeDb(`
+            INSERT INTO review_queue (
+              accident_id, issue_type, title, description, status, match_confidence, source_a, source_b, details_json
+            ) VALUES (?, 'LLM_EXTRACTION_UNAVAILABLE', ?, ?, 'PENDING', 'HIGH', ?, '', ?)
+          `, [
+            reviewAccidentId,
+            `Yapılandırılmış çıkarım incelemesi: ${article.title}`,
+            'LLM sağlayıcısı yapılandırılmadığı için trafik adayı otomatik olarak olay kaydına dönüştürülmedi.',
+            article.source_name,
+            JSON.stringify({ article_id: article.id, url: article.url, published_at: article.published_at })
+          ]);
+        }
         return {
           status: 'REVIEW_REQUIRED',
           record_type: recordType,

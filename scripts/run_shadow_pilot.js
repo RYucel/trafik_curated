@@ -227,7 +227,7 @@ async function executeDailyShadowPilot(targetDate = null) {
 
   // 9. Enforce SHADOW MODE (Zero public Telegram publication)
   const bot = new TelegramBotService();
-  const shadowBroadcast = await bot.sendDailyBroadcast(false);
+  const shadowBroadcast = await bot.sendDailyBroadcast(false, dateStr);
   console.log(`[SHADOW PILOT] Daily Telegram Broadcast Gated: Status = ${shadowBroadcast.status}`);
 
   // 10. Advance the seven-day pilot from persisted daily snapshots.
@@ -269,7 +269,7 @@ async function executeDailyShadowPilot(targetDate = null) {
     pilot_state: pilotState,
     planned_pilot_dates: plannedPilotDates,
     missed_pilot_dates: missedPilotDates,
-    latest_run_status: runErrors.length === 0 && collectResult.feeds_failed === 0
+    latest_run_status: runErrors.length === 0 && collectResult.feeds_failed === 0 && extractionReviewRequiredCount === 0
       ? 'VERIFIED_RUN'
       : 'COMPLETED_WITH_ERRORS',
     telegram_mode: 'SHADOW_MODE_GATED',
