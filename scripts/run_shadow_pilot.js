@@ -13,7 +13,7 @@ import { TelegramBotService } from '../src/telegram/bot.js';
 import { KibrisGazetesiAdapter } from '../src/ingestion/adapters/kibris_gazetesi.js';
 import { HaberKibrisAdapter } from '../src/ingestion/adapters/haber_kibris.js';
 
-const TOTAL_PILOT_DAYS = 7;
+const TOTAL_PILOT_DAYS = 4;
 
 function resolveTargetDate(targetDate = null) {
   const dateStr = targetDate || process.env.PILOT_TARGET_DATE || new Date().toISOString().substring(0, 10);

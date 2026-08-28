@@ -1,9 +1,9 @@
 {
   "pilot_start_date": "2026-08-27",
-  "current_day": 1,
-  "days_completed": 1,
-  "days_pending": 6,
-  "total_days": 7,
+  "current_day": 2,
+  "days_completed": 2,
+  "days_pending": 2,
+  "total_days": 4,
   "latest_run_status": "VERIFIED_RUN",
   "telegram_mode": "SHADOW_MODE_GATED",
   "new_canonical_accidents_day_1": 0,
@@ -11,17 +11,14 @@
   "total_errors": 0,
   "total_conflicts": 0,
   "total_unverified": 0,
-  "last_snapshot": "data/pilot/2026-08-27",
+  "last_snapshot": "data/pilot/2026-08-28",
   "latest_new_canonical_accidents": 0,
   "pilot_state": "PILOT_IN_PROGRESS",
   "planned_pilot_dates": [
     "2026-08-27",
     "2026-08-28",
     "2026-08-29",
-    "2026-08-30",
-    "2026-08-31",
-    "2026-09-01",
-    "2026-09-02"
+    "2026-08-30"
   ],
   "missed_pilot_dates": [],
   "previous_pilot": {
