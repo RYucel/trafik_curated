@@ -1,7 +1,7 @@
 # 🚦 KKTC TRAFİK GÜNLÜK BÜLTENİ
 
 **Tarih**: 2026-08-28  
-**Güvenlik Sınıfı**: `PUBLIC_SAFE` (Tüm istatistikler ve vakalar doğrulanmıştır.)  
+**Güvenlik Sınıfı**: `REVIEW_REQUIRED` (1 vaka doğrulanmayı bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.)  
 **Veri Kapsamı**: 1 Ocak 2026 – 31 Temmuz 2026 (YTD / Kısmi Yıl)
 
 ---
@@ -18,7 +18,7 @@
 
 ## 🟡 Doğrulama Bekleyenler (REPORTED / UNVERIFIED)
 
-Şu anda onay bekleyen vaka bulunmamaktadır.
+- 🟡 **[UNVERIFIED]** 2026-08-28 | İskele - Yenierenköy | Kaynak: Haber Kıbrıs
 
 ---
 
