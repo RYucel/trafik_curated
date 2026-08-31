@@ -8,7 +8,7 @@
 
 ## 🔴 Son 24 Saat / Doğrulanmış Vakalar (VERIFIED)
 
-Son 24 saat içerisinde yeni doğrulanmış vaka bulunmamaktadır.
+Son 24 saat içerisinde yeni ölümlü vaka bildirilmemiştir.
 
 ---
 
