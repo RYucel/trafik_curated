@@ -58,13 +58,15 @@ async function testSuccessfulPublicationIsPersisted() {
 
   try {
     const bot = new TelegramBotService();
-    const first = await bot.sendDailyBroadcast(true, targetDate);
-    const second = await bot.sendDailyBroadcast(true, targetDate);
+    const reservation = await bot.reserveDailyBroadcast(targetDate, 'persist-run');
+    const first = await bot.sendDailyBroadcast(true, targetDate, 'persist-run');
+    const second = await bot.sendDailyBroadcast(true, targetDate, 'persist-run');
     const saved = queryDb(
       'SELECT published_telegram FROM bulletins WHERE bulletin_date = ?',
       [targetDate]
     )[0];
 
+    assert.strictEqual(reservation.status, 'RESERVED');
     assert.strictEqual(first.status, 'PUBLISHED');
     assert.strictEqual(second.status, 'ALREADY_PUBLISHED');
     assert.strictEqual(saved.published_telegram, 1);
@@ -89,6 +91,7 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   const publish = workflow.indexOf('Publish approved Telegram bulletin');
   const persistPublication = workflow.indexOf('Commit successful Telegram publication state');
   assert.ok(reserve < persistReservation && persistReservation < publish && publish < persistPublication);
+  assert.match(workflow, /if: \$\{\{ always\(\)/);
 }
 
 async function testImpossibleTargetDateIsRejected() {
@@ -112,6 +115,47 @@ async function testPublicationReservationBlocksAnotherRun() {
   }
 }
 
+async function testLivePublicationRequiresReservation() {
+  const targetDate = '2099-12-28';
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.TELEGRAM_BOT_TOKEN;
+  const originalChatId = process.env.TELEGRAM_CHAT_ID;
+  let sendCount = 0;
+  executeDb('DELETE FROM bulletins WHERE bulletin_date = ?', [targetDate]);
+  globalThis.fetch = async () => {
+    sendCount += 1;
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+  process.env.TELEGRAM_CHAT_ID = 'test-chat';
+
+  try {
+    const result = await new TelegramBotService().sendDailyBroadcast(true, targetDate);
+    assert.strictEqual(result.status, 'RESERVATION_REQUIRED');
+    assert.strictEqual(sendCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.TELEGRAM_BOT_TOKEN;
+    else process.env.TELEGRAM_BOT_TOKEN = originalToken;
+    if (originalChatId === undefined) delete process.env.TELEGRAM_CHAT_ID;
+    else process.env.TELEGRAM_CHAT_ID = originalChatId;
+    executeDb('DELETE FROM bulletins WHERE bulletin_date = ?', [targetDate]);
+  }
+}
+
+async function testFailedAttemptCanReleaseItsReservation() {
+  const targetDate = '2099-12-27';
+  executeDb('DELETE FROM bulletins WHERE bulletin_date = ?', [targetDate]);
+  try {
+    const bot = new TelegramBotService();
+    assert.strictEqual((await bot.reserveDailyBroadcast(targetDate, 'failed-run')).status, 'RESERVED');
+    assert.strictEqual((await bot.releaseDailyBroadcast(targetDate, 'failed-run')).status, 'RELEASED');
+    assert.strictEqual((await bot.reserveDailyBroadcast(targetDate, 'retry-run')).status, 'RESERVED');
+  } finally {
+    executeDb('DELETE FROM bulletins WHERE bulletin_date = ?', [targetDate]);
+  }
+}
+
 await testBulletinUsesTargetDatePeriod();
 console.log('✓ Live bulletin uses the requested target-date period');
 await testTelegramBulletinOmitsUndeployedPublicLink();
@@ -126,3 +170,7 @@ await testImpossibleTargetDateIsRejected();
 console.log('✓ Impossible target dates are rejected');
 await testPublicationReservationBlocksAnotherRun();
 console.log('✓ A durable reservation blocks a second workflow run');
+await testLivePublicationRequiresReservation();
+console.log('✓ Live publication cannot bypass its reservation');
+await testFailedAttemptCanReleaseItsReservation();
+console.log('✓ A definitive failed attempt can release its reservation');

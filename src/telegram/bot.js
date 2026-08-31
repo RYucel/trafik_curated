@@ -135,6 +135,17 @@ export class TelegramBotService {
       : { status: 'RESERVATION_FAILED', error: saved.error || 'Could not persist publication reservation' };
   }
 
+  async releaseDailyBroadcast(targetDate, reservationId) {
+    if (!reservationId) return { status: 'RELEASE_FAILED', error: 'Reservation ID is required' };
+    const released = executeDb(
+      'DELETE FROM bulletins WHERE bulletin_date = ? AND published_telegram = -1 AND notable_observation = ?',
+      [targetDate, `RESERVATION:${reservationId}`]
+    );
+    return released.success && released.rows_affected === 1
+      ? { status: 'RELEASED' }
+      : { status: 'RELEASE_FAILED', error: released.error || 'Matching reservation was not found' };
+  }
+
   async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined, reservationId = undefined) {
     const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
 
@@ -146,6 +157,9 @@ export class TelegramBotService {
       if (existing?.published_telegram === 1) {
         console.log(`[TelegramBot] ${bulletin.targetDate} bulletin already published; duplicate skipped.`);
         return { status: 'ALREADY_PUBLISHED' };
+      }
+      if (this.token && this.chatId && !reservationId) {
+        return { status: 'RESERVATION_REQUIRED' };
       }
       if (reservationId) {
         const expectedReservation = `RESERVATION:${reservationId}`;

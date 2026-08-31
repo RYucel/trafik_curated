@@ -17,6 +17,10 @@ const result = await new TelegramBotService().sendDailyBroadcast(true, targetDat
 console.log(`[LiveBroadcast] ${targetDate}: ${result.status}${result.http_status ? ` (HTTP ${result.http_status})` : ''}`);
 
 if (!['PUBLISHED', 'ALREADY_PUBLISHED'].includes(result.status)) {
+  if (['FAILED', 'SIMULATED', 'BLOCKED', 'REQUIRES_APPROVAL'].includes(result.status)) {
+    const release = await new TelegramBotService().releaseDailyBroadcast(targetDate, reservationId);
+    console.log(`[LiveBroadcast] ${targetDate} reservation cleanup: ${release.status}`);
+  }
   console.error(`[LiveBroadcast] Publication did not complete: ${result.error || result.status}`);
   process.exit(1);
 }

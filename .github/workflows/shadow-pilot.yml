@@ -103,7 +103,7 @@ jobs:
           node scripts/run_approved_broadcast.js "$TARGET_DATE"
 
       - name: Commit successful Telegram publication state
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(live): record approved Telegram publication [skip ci]"
