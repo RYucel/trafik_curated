@@ -10,6 +10,11 @@ on:
         description: 'Target Date YYYY-MM-DD (Default: today)'
         required: false
         default: ''
+      publish_approved:
+        description: 'Publish the safety-approved Telegram bulletin for this manually dispatched run'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,6 +54,16 @@ jobs:
         run: |
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           node scripts/run_shadow_pilot.js "$TARGET_DATE"
+
+      - name: Publish approved Telegram bulletin (manual dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        env:
+          TELEGRAM_LIVE_ENABLED: 'true'
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          node scripts/run_approved_broadcast.js "$TARGET_DATE"
 
       - name: Validate Daily Snapshot Artifacts
         run: |
