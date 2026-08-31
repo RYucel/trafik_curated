@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 import { BulletinAgent } from '../agents/bulletin_agent.js';
 import { AnalyticsEngine } from '../analytics/engine.js';
+import { executeDb, queryDb } from '../lib/db.js';
 
 dotenv.config();
 
@@ -74,6 +75,17 @@ export class TelegramBotService {
   async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined) {
     const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
 
+    if (isApprovedByHuman) {
+      const existing = queryDb(
+        'SELECT published_telegram FROM bulletins WHERE bulletin_date = ? LIMIT 1',
+        [bulletin.targetDate]
+      )[0];
+      if (existing?.published_telegram === 1) {
+        console.log(`[TelegramBot] ${bulletin.targetDate} bulletin already published; duplicate skipped.`);
+        return { status: 'ALREADY_PUBLISHED' };
+      }
+    }
+
     if (bulletin.safety_class === 'DO_NOT_PUBLISH') {
       console.warn(`[TelegramBot] BROADCAST BLOCKED: ${bulletin.safety_reason}`);
       return { status: 'BLOCKED', reason: bulletin.safety_reason };
@@ -105,12 +117,46 @@ export class TelegramBotService {
         })
       });
       const response = await res.json().catch(() => ({}));
-      return {
+      const result = {
         status: res.ok ? 'PUBLISHED' : 'FAILED',
         ok: res.ok,
         http_status: res.status,
         error: res.ok ? undefined : (response.description || 'Telegram API rejected the request')
       };
+      if (res.ok) {
+        executeDb(`
+          INSERT INTO bulletins (
+            bulletin_date, title, content_markdown, content_telegram, data_period,
+            fatal_accidents_2026, deaths_2026, injuries_2026, yoy_change_pct,
+            notable_observation, sources_list_json, published_telegram
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+          ON CONFLICT(bulletin_date) DO UPDATE SET
+            title = excluded.title,
+            content_markdown = excluded.content_markdown,
+            content_telegram = excluded.content_telegram,
+            data_period = excluded.data_period,
+            fatal_accidents_2026 = excluded.fatal_accidents_2026,
+            deaths_2026 = excluded.deaths_2026,
+            injuries_2026 = excluded.injuries_2026,
+            yoy_change_pct = excluded.yoy_change_pct,
+            notable_observation = excluded.notable_observation,
+            sources_list_json = excluded.sources_list_json,
+            published_telegram = 1
+        `, [
+          bulletin.targetDate,
+          'KKTC TRAFİK GÜNLÜK BÜLTENİ',
+          bulletin.markdown,
+          telegramText,
+          bulletin.data_period,
+          bulletin.fatal2026,
+          bulletin.deaths2026,
+          bulletin.injuries2026,
+          bulletin.yoyPct2025,
+          bulletin.safety_reason,
+          '[]'
+        ]);
+      }
+      return result;
     } catch (e) {
       console.error('Telegram broadcast error:', e);
       return { status: 'ERROR', error: e.message };

@@ -19,6 +19,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: telegram-daily-publication
+  cancel-in-progress: false
+
 jobs:
   run-shadow-pilot:
     name: Execute Daily Shadow Pilot
