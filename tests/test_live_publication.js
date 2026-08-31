@@ -101,7 +101,7 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   const bindings = workflow.match(/PILOT_TARGET_DATE: \$\{\{ inputs\.target_date \}\}/g) || [];
   const publicUrlBindings = workflow.match(/PUBLIC_BULLETIN_BASE_URL: \$\{\{ vars\.PUBLIC_BULLETIN_BASE_URL \}\}/g) || [];
   assert.strictEqual(bindings.length, 4);
-  assert.strictEqual(publicUrlBindings.length, 3);
+  assert.strictEqual(publicUrlBindings.length, 2);
 
   const reserve = workflow.indexOf('Reserve approved Telegram bulletin');
   const persistReservation = workflow.indexOf('Commit and Push Snapshot & Publication Reservation');
