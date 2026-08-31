@@ -35,6 +35,18 @@ function getPeriod(targetDate) {
   };
 }
 
+function getPublicBulletinUrl(targetDate) {
+  const configuredBase = process.env.PUBLIC_BULLETIN_BASE_URL?.trim();
+  if (!configuredBase) return null;
+  try {
+    const base = new URL(configuredBase);
+    if (!['http:', 'https:'].includes(base.protocol)) return null;
+    return `${base.toString().replace(/\/$/, '')}/bulletins/${targetDate}/`;
+  } catch {
+    return null;
+  }
+}
+
 export class BulletinAgent {
   static async generateDailyBulletin(targetDate = new Date().toISOString().substring(0, 10)) {
     const period = getPeriod(targetDate);
@@ -81,6 +93,7 @@ export class BulletinAgent {
     const yoyPct2025 = deaths2025 > 0 ? Number((((deaths2026 - deaths2025) / deaths2025) * 100).toFixed(1)) : null;
     const yoyPct2024 = deaths2024 > 0 ? Number((((deaths2026 - deaths2024) / deaths2024) * 100).toFixed(1)) : null;
     const formatChange = value => value === null ? 'karşılaştırılamıyor' : `${value >= 0 ? '+' : ''}${value}%`;
+    const publicBulletinUrl = getPublicBulletinUrl(targetDate);
 
     // 3. Fetch verified incidents in past 24 hours / last 7 days
     const recentVerified = queryDb(`
@@ -167,6 +180,7 @@ Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve
 📅 ${period.year - 2} Aynı Dönem: ${deaths2024} (${formatChange(yoyPct2024)})
 
 🔎 Kaynaklar: Resmî açıklamalar ve doğrulanmış medya kayıtları.
+${publicBulletinUrl ? `🌐 Ayrıntılı bülten: ${publicBulletinUrl}` : ''}
     `.trim();
 
     return {

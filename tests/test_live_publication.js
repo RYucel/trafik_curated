@@ -23,6 +23,21 @@ async function testTelegramBulletinOmitsUndeployedPublicLink() {
   assert.doesNotMatch(bulletin.telegram, /kktctrafik\.org\/bulletins/);
 }
 
+async function testTelegramBulletinUsesConfiguredPagesUrl() {
+  const originalBaseUrl = process.env.PUBLIC_BULLETIN_BASE_URL;
+  process.env.PUBLIC_BULLETIN_BASE_URL = 'https://ryucel.github.io/trafik_curated';
+  try {
+    const bulletin = await BulletinAgent.generateDailyBulletin('2026-08-31');
+    assert.match(
+      bulletin.telegram,
+      /https:\/\/ryucel\.github\.io\/trafik_curated\/bulletins\/2026-08-31\//
+    );
+  } finally {
+    if (originalBaseUrl === undefined) delete process.env.PUBLIC_BULLETIN_BASE_URL;
+    else process.env.PUBLIC_BULLETIN_BASE_URL = originalBaseUrl;
+  }
+}
+
 async function testPublishedDateIsNotSentTwice() {
   const targetDate = '2099-12-31';
   executeDb('DELETE FROM bulletins WHERE bulletin_date = ?', [targetDate]);
@@ -84,7 +99,9 @@ async function testSuccessfulPublicationIsPersisted() {
 function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   const workflow = fs.readFileSync('.github/workflows/shadow-pilot.yml', 'utf8');
   const bindings = workflow.match(/PILOT_TARGET_DATE: \$\{\{ inputs\.target_date \}\}/g) || [];
+  const publicUrlBindings = workflow.match(/PUBLIC_BULLETIN_BASE_URL: \$\{\{ vars\.PUBLIC_BULLETIN_BASE_URL \}\}/g) || [];
   assert.strictEqual(bindings.length, 4);
+  assert.strictEqual(publicUrlBindings.length, 3);
 
   const reserve = workflow.indexOf('Reserve approved Telegram bulletin');
   const persistReservation = workflow.indexOf('Commit and Push Snapshot & Publication Reservation');
@@ -160,6 +177,8 @@ await testBulletinUsesTargetDatePeriod();
 console.log('✓ Live bulletin uses the requested target-date period');
 await testTelegramBulletinOmitsUndeployedPublicLink();
 console.log('✓ Telegram bulletin omits the undeployed public link');
+await testTelegramBulletinUsesConfiguredPagesUrl();
+console.log('✓ Telegram bulletin uses the configured GitHub Pages URL');
 await testPublishedDateIsNotSentTwice();
 console.log('✓ A published date cannot be sent twice');
 await testSuccessfulPublicationIsPersisted();

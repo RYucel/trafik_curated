@@ -2,17 +2,13 @@
 
 **Tarih**: 2026-08-31  
 **Güvenlik Sınıfı**: `PUBLIC_SAFE` (Tüm istatistikler ve vakalar doğrulanmıştır.)  
-**Veri Kapsamı**: 1 Ocak 2026 – 31 Temmuz 2026 (YTD / Kısmi Yıl)
+**Veri Kapsamı**: 1 Ocak 2026 – 31 Ağustos 2026 (YTD / Kısmi Yıl)
 
 ---
 
 ## 🔴 Son 24 Saat / Doğrulanmış Vakalar (VERIFIED)
 
-- 🔴 **[VERIFIED]** 2026-08-29 | İskele - Ziyamet, Bağlar Mevkii | 2 Ölü, 3 Yaralı *(Kaynak: Yenidüzen - TIER_3_ESTABLISHED_MEDIA)*
-- 🔴 **[VERIFIED]** 2026-08-28 | İskele - Yenierenköy | 0 Ölü, 1 Yaralı *(Kaynak: Haber Kıbrıs - TIER_3_ESTABLISHED_MEDIA)*
-- 🔴 **[VERIFIED]** 2026-08-28 | Gazimağusa - Somut Sokak, Gazimağusa | 0 Ölü, 1 Yaralı *(Kaynak: Haber Kıbrıs - TIER_3_ESTABLISHED_MEDIA)*
-- 🔴 **[VERIFIED]** 2026-08-26 | Gazimağusa - Yeniboğaziçi Çemberi | 0 Ölü, 1 Yaralı *(Kaynak: Yenidüzen - TIER_3_ESTABLISHED_MEDIA)*
-- 🔴 **[VERIFIED]** 2026-08-25 | Lefkoşa - Lefkoşa | 0 Ölü, 1 Yaralı *(Kaynak: Yenidüzen - TIER_3_ESTABLISHED_MEDIA)*
+Son 24 saat içerisinde yeni doğrulanmış vaka bulunmamaktadır.
 
 ---
 
@@ -22,21 +18,21 @@
 
 ---
 
-## 📊 2026 YTD (Ocak – Temmuz İstatistiksel Gözlem)
+## 📊 2026 YTD (Ocak–Ağustos İstatistiksel Gözlem)
 
-- **Can Kaybı**: 29
-- **Ölümlü Kaza Sayısı**: 25
-- **Yaralı Sayısı**: 142
+- **Can Kaybı**: 32
+- **Ölümlü Kaza Sayısı**: 26
+- **Yaralı Sayısı**: 154
 
 ---
 
 ## 📊 Dönemsel Karşılaştırma
 
-- **2026 YTD (Ocak–Temmuz)**: 29 Can Kaybı
-- **2025 Aynı Dönem (Ocak–Temmuz)**: 2 Can Kaybı (Değişim: +1350%)
-- **2024 Aynı Dönem (Ocak–Temmuz)**: 23 Can Kaybı (Değişim: +26.1%)
+- **2026 YTD (Ocak–Ağustos)**: 32 Can Kaybı
+- **2025 Aynı Dönem (Ocak–Ağustos)**: 3 Can Kaybı (Değişim: +966.7%)
+- **2024 Aynı Dönem (Ocak–Ağustos)**: 23 Can Kaybı (Değişim: +39.1%)
 
-*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (Ocak–Temmuz) ile yapılmıştır. 2026 YTD verisi 2025 tam yıl toplamı ile kıyaslanamaz.*
+*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (Ocak–Ağustos) ile yapılmıştır. Kısmi yıl verisi tam yıl toplamı ile kıyaslanamaz.*
 
 ---
 
