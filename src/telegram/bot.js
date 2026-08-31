@@ -93,16 +93,15 @@ export class TelegramBotService {
 
     try {
       const url = `https://api.telegram.org/bot${this.token}/sendMessage`;
-      // Telegram's legacy Markdown parser uses single asterisks for bold;
-      // the bulletin template uses GitHub-style double asterisks.
-      const telegramText = bulletin.telegram.replace(/\*\*/g, '*');
+      // Send public bulletins as plain text. Dynamic values such as
+      // PUBLIC_SAFE contain Markdown control characters and must not be parsed.
+      const telegramText = bulletin.telegram.replace(/\*\*/g, '');
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: this.chatId,
-          text: telegramText,
-          parse_mode: 'Markdown'
+          text: telegramText
         })
       });
       const response = await res.json().catch(() => ({}));
