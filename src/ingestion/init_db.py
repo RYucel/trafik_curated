@@ -67,21 +67,18 @@ def init_database():
             ))
         print(f"Inserted {len(hist_records)} historical records (1975-2025).")
 
-    # 2. Populate TAK Detailed Accidents
+    # 2. Optional development fixtures. Never seed synthetic or legacy-mapped
+    # accident rows into a production database unless explicitly requested.
+    seed_fixture_data = os.environ.get('SEED_SYNTHETIC_FIXTURES', '').lower() == 'true'
     tak_json_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "processed", "detailed_accidents_tak.json")
     tak_accidents = []
-    if os.path.exists(tak_json_path):
+    if seed_fixture_data and os.path.exists(tak_json_path):
         with open(tak_json_path, 'r', encoding='utf-8') as f:
             tak_accidents = json.load(f)
 
-    # Build comprehensive accident list from 2024 to July 2026
-    # Seed high quality realistic data matching real KKTC police trends for 2024, 2025, Jan-Jul 2026
+    # Build development-only fixture data when SEED_SYNTHETIC_FIXTURES=true.
     random.seed(42)
 
-    # 2024: 47 fatal accidents, 50 deaths (matching official statistics)
-    # Jan-Jul 2025: ~24 fatal accidents, 26 deaths
-    # Jan-Jul 2026: ~28 fatal accidents, 31 deaths (YTD live monitor dataset)
-    
     all_accidents = []
 
     # Map TAK records
@@ -143,7 +140,7 @@ def init_database():
     # Add structured 2026 Live Dataset (Jan 1, 2026 to July 31, 2026) for exact YTD compliance
     start_2026 = datetime(2026, 1, 1)
     end_2026 = datetime(2026, 7, 31)
-    curr_date = start_2026
+    curr_date = start_2026 if seed_fixture_data else end_2026 + timedelta(days=1)
 
     acc_counter = 1000
     while curr_date <= end_2026:
@@ -194,11 +191,12 @@ def init_database():
                 "gender": random.choice(['Erkek', 'Kadın']),
                 "description_raw": title,
                 "description_normalized": title,
-                "source_type": "Official",
-                "source_name": "PGM Polis Basın Subaylığı",
-                "source_url": f"https://www.polis.gov.ct.tr/haber-{acc_counter}",
+                "source_type": "Synthetic Test Fixture",
+                "source_name": "Synthetic test fixture",
+                "source_url": "https://github.com/RYucel/trafik_curated",
                 "source_date": date_str,
-                "verification_status": "VERIFIED",
+                "record_type": "SYNTHETIC_TEST_FIXTURE",
+                "verification_status": "INCOMPLETE",
                 "confidence_score": 0.98,
                 "content_hash": generate_hash(f"ACC-2026-{acc_counter}_{date_str}")
             })
@@ -237,8 +235,7 @@ def init_database():
 
     print(f"Inserted {inserted_count} accidents into SQLite database.")
 
-    # 3. Seed Review Queue Items (Verification conflicts & low-confidence duplicates)
-    cursor.execute("DELETE FROM review_queue")
+    # 3. Optional development-only review queue fixtures.
     review_items = [
         {
             "accident_id": "ACC-2026-1012",
@@ -275,22 +272,25 @@ def init_database():
         }
     ]
 
-    for r in review_items:
-        cursor.execute("""
-            INSERT INTO review_queue (
-                accident_id, issue_type, title, description, status, match_confidence, source_a, source_b, details_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            r['accident_id'], r['issue_type'], r['title'], r['description'], r['status'],
-            r['match_confidence'], r['source_a'], r['source_b'], r['details_json']
-        ))
-    print(f"Inserted {len(review_items)} pending review queue items.")
+    if seed_fixture_data:
+        cursor.execute("DELETE FROM review_queue")
+        for r in review_items:
+            cursor.execute("""
+                INSERT INTO review_queue (
+                    accident_id, issue_type, title, description, status, match_confidence, source_a, source_b, details_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r['accident_id'], r['issue_type'], r['title'], r['description'], r['status'],
+                r['match_confidence'], r['source_a'], r['source_b'], r['details_json']
+            ))
+        print(f"Inserted {len(review_items)} development review queue fixtures.")
 
     # 4. Seed Audit Log Entry
-    cursor.execute("""
-        INSERT INTO audit_log (user_action, entity_type, entity_id, previous_state, new_state, action_by)
-        VALUES ('SYSTEM_INIT', 'DATABASE', 'kktc_traffic.db', NULL, 'VERIFIED_IMPORT', 'System Admin')
-    """)
+    if seed_fixture_data:
+        cursor.execute("""
+            INSERT INTO audit_log (user_action, entity_type, entity_id, previous_state, new_state, action_by)
+            VALUES ('SYSTEM_INIT', 'DATABASE', 'kktc_traffic.db', NULL, 'SYNTHETIC_TEST_FIXTURES', 'System Admin')
+        """)
 
     conn.commit()
     conn.close()

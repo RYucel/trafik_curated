@@ -5,6 +5,7 @@ import { ArticleFetcher } from '../src/ingestion/article_fetcher.js';
 const pilotSource = fs.readFileSync(new URL('../scripts/run_shadow_pilot.js', import.meta.url), 'utf8');
 const extractorSource = fs.readFileSync(new URL('../src/ingestion/accident_extractor.js', import.meta.url), 'utf8');
 const workflowSource = fs.readFileSync(new URL('../.github/workflows/shadow-pilot.yml', import.meta.url), 'utf8');
+const initDbSource = fs.readFileSync(new URL('../src/ingestion/init_db.py', import.meta.url), 'utf8');
 
 assert.ok(
   pilotSource.includes('fetcher.fetchArticleContent(article)'),
@@ -41,6 +42,16 @@ assert.ok(
     workflowSource.includes('verification.json') &&
     workflowSource.includes('data/pilot/$TARGET_DATE/ingestion.json'),
   'Workflow must validate every requested snapshot artifact, not merely any status file'
+);
+assert.match(
+  initDbSource,
+  /if seed_fixture_data:\s+cursor\.execute\("DELETE FROM review_queue"\)/,
+  'Default database initialization must not erase or seed the review queue'
+);
+assert.match(
+  initDbSource,
+  /if seed_fixture_data:\s+cursor\.execute\("""\s+INSERT INTO audit_log[\s\S]*?SYNTHETIC_TEST_FIXTURES/,
+  'Synthetic initialization audit entries must require explicit fixture mode'
 );
 
 const fetcher = new ArticleFetcher();

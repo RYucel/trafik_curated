@@ -1,5 +1,10 @@
 // Daily Bulletin Generation Agent for KKTC Traffic Intelligence
+import fs from 'node:fs';
 import { queryDb } from '../lib/db.js';
+
+const CURATED_PERIOD_STATS = JSON.parse(
+  fs.readFileSync(new URL('../../data/curated/official_period_statistics.json', import.meta.url), 'utf8')
+);
 
 const TURKISH_MONTHS = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -47,9 +52,17 @@ function getPublicBulletinUrl(targetDate) {
   }
 }
 
+function getCuratedPeriodStats(targetDate, year) {
+  return CURATED_PERIOD_STATS
+    .filter(item => item.year === year && item.period_end <= targetDate)
+    .sort((a, b) => b.period_end.localeCompare(a.period_end))[0] || null;
+}
+
 export class BulletinAgent {
   static async generateDailyBulletin(targetDate = new Date().toISOString().substring(0, 10)) {
     const period = getPeriod(targetDate);
+    const curatedStats = getCuratedPeriodStats(targetDate, period.year);
+    const statisticsPeriod = curatedStats ? getPeriod(curatedStats.period_end) : period;
     // 1. Check for Pending Conflict Items in Review Queue
     const pendingConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_DEATH_COUNT'`)[0]?.cnt || 0;
     const pendingUnverified = queryDb(`SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'`)[0]?.cnt || 0;
@@ -70,7 +83,7 @@ export class BulletinAgent {
     }
 
     // 2. Fetch target-date YTD stats and exact same-period comparisons.
-    const stats2026 = queryDb(`
+    const rawStats2026 = queryDb(`
       SELECT 
         COUNT(CASE WHEN fatal = 1 THEN 1 END) as fatal_accidents,
         SUM(death_count) as deaths,
@@ -78,20 +91,26 @@ export class BulletinAgent {
       FROM accidents WHERE event_date BETWEEN ? AND ?
     `, [period.startDate, period.endDate])[0] || {};
 
-    const stats2025Same = queryDb(`
+    const rawStats2025Same = queryDb(`
       SELECT COALESCE(SUM(death_count), 0) as deaths FROM accidents WHERE event_date BETWEEN ? AND ?
     `, [period.previousYearStart, period.previousYearEnd])[0] || {};
 
-    const stats2024Same = queryDb(`
+    const rawStats2024Same = queryDb(`
       SELECT COALESCE(SUM(death_count), 0) as deaths FROM accidents WHERE event_date BETWEEN ? AND ?
     `, [period.twoYearsAgoStart, period.twoYearsAgoEnd])[0] || {};
 
+    const stats2026 = curatedStats ? {
+      fatal_accidents: curatedStats.fatal_accidents,
+      deaths: curatedStats.deaths,
+      injuries: curatedStats.injuries
+    } : rawStats2026;
     const deaths2026 = stats2026.deaths || 0;
-    const deaths2025 = stats2025Same.deaths || 0;
-    const deaths2024 = stats2024Same.deaths || 0;
+    const comparisonDeaths2026 = curatedStats?.comparison_current_deaths ?? deaths2026;
+    const deaths2025 = curatedStats?.comparison_2025_deaths ?? rawStats2025Same.deaths ?? 0;
+    const deaths2024 = curatedStats?.comparison_2024_deaths ?? rawStats2024Same.deaths ?? 0;
 
-    const yoyPct2025 = deaths2025 > 0 ? Number((((deaths2026 - deaths2025) / deaths2025) * 100).toFixed(1)) : null;
-    const yoyPct2024 = deaths2024 > 0 ? Number((((deaths2026 - deaths2024) / deaths2024) * 100).toFixed(1)) : null;
+    const yoyPct2025 = deaths2025 > 0 ? Number((((comparisonDeaths2026 - deaths2025) / deaths2025) * 100).toFixed(1)) : null;
+    const yoyPct2024 = deaths2024 > 0 ? Number((((comparisonDeaths2026 - deaths2024) / deaths2024) * 100).toFixed(1)) : null;
     const formatChange = value => value === null ? 'karşılaştırılamıyor' : `${value >= 0 ? '+' : ''}${value}%`;
     const publicBulletinUrl = getPublicBulletinUrl(targetDate);
 
@@ -115,7 +134,8 @@ export class BulletinAgent {
 
 **Tarih**: ${targetDate}  
 **Güvenlik Sınıfı**: \`${safetyClass}\` (${safetyReason})  
-**Veri Kapsamı**: ${period.rangeLabel} (YTD / Kısmi Yıl)
+**Veri Kapsamı**: ${statisticsPeriod.rangeLabel} (YTD / Kısmi Yıl)
+**İstatistik Niteliği**: ${curatedStats ? `${curatedStats.classification} — olay kayıtlarının ham toplamı değildir` : 'CANONICAL_EVENT_SUM'}
 
 ---
 
@@ -131,21 +151,21 @@ ${unverifiedItems.length > 0 ? unverifiedItems.map(acc => `- 🟡 **[UNVERIFIED]
 
 ---
 
-## 📊 ${period.year} YTD (${period.shortLabel} İstatistiksel Gözlem)
+## 📊 ${period.year} YTD (${statisticsPeriod.shortLabel} İstatistiksel Gözlem)
 
 - **Can Kaybı**: ${deaths2026}
 - **Ölümlü Kaza Sayısı**: ${stats2026.fatal_accidents || 0}
-- **Yaralı Sayısı**: ${stats2026.injuries || 0}
+${stats2026.injuries === null ? '- **Yaralı Sayısı**: Bu dönem için doğrulanmış toplu sayı yayımlanmadı.' : `- **Yaralı Sayısı**: ${stats2026.injuries || 0}`}
 
 ---
 
 ## 📊 Dönemsel Karşılaştırma
 
-- **${period.year} YTD (${period.shortLabel})**: ${deaths2026} Can Kaybı
-- **${period.year - 1} Aynı Dönem (${period.shortLabel})**: ${deaths2025} Can Kaybı (Değişim: ${formatChange(yoyPct2025)})
-- **${period.year - 2} Aynı Dönem (${period.shortLabel})**: ${deaths2024} Can Kaybı (Değişim: ${formatChange(yoyPct2024)})
+- **${period.year} Karşılaştırma Tabanı (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${comparisonDeaths2026} Can Kaybı
+- **${period.year - 1} Aynı Dönem (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${deaths2025} Can Kaybı (Değişim: ${formatChange(yoyPct2025)})
+- **${period.year - 2} Aynı Dönem (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${deaths2024} Can Kaybı (Değişim: ${formatChange(yoyPct2024)})
 
-*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (${period.shortLabel}) ile yapılmıştır. Kısmi yıl verisi tam yıl toplamı ile kıyaslanamaz.*
+*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel}) ile yapılmıştır. Kısmi yıl verisi tam yıl toplamı ile kıyaslanamaz.*
 
 ---
 
@@ -161,6 +181,8 @@ ${unverifiedItems.length > 0 ? unverifiedItems.map(acc => `- 🟡 **[UNVERIFIED]
 1. **TIER 1 (Official)**: KKTC PGM Polis Basın Subaylığı İstatistikleri
 2. **TIER 2 (Agency)**: TAK (Türk Ajansı Kıbrıs) Arşivi
 3. **TIER 3 (Established Media)**: Kıbrıs Postası, Yenidüzen, Kıbrıs Gazetesi
+${curatedStats ? `\nDönem toplamı kaynakları:\n${curatedStats.sources.map(source => `- ${source}`).join('\n')}` : ''}
+${curatedStats?.derivation ? `\nTüretilmiş toplam hesabı:\n${curatedStats.derivation.map(item => `- ${item}`).join('\n')}` : ''}
 
 ---
 
@@ -174,10 +196,9 @@ Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve
 📅 ${targetDate}
 🔒 Güvenlik Sınıfı: ${safetyClass}
 ━━━━━━━━━━━━━━━
-📊 **${period.year} CAN KAYBI (${period.shortLabel} YTD)**
+📊 **${period.year} CAN KAYBI (${statisticsPeriod.shortLabel} YTD)**
 ☠️ **${deaths2026} Can Kaybı** (${stats2026.fatal_accidents || 0} Ölümlü Kaza)
-📅 ${period.year - 1} Aynı Dönem: ${deaths2025} (${formatChange(yoyPct2025)})
-📅 ${period.year - 2} Aynı Dönem: ${deaths2024} (${formatChange(yoyPct2024)})
+📅 ${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel} karşılaştırması: ${period.year} ${comparisonDeaths2026}, ${period.year - 1} ${deaths2025} (${formatChange(yoyPct2025)}), ${period.year - 2} ${deaths2024} (${formatChange(yoyPct2024)})
 
 🔎 Kaynaklar: Resmî açıklamalar ve doğrulanmış medya kayıtları.
 ${publicBulletinUrl ? `🌐 Ayrıntılı bülten: ${publicBulletinUrl}` : ''}
@@ -191,8 +212,8 @@ ${publicBulletinUrl ? `🌐 Ayrıntılı bülten: ${publicBulletinUrl}` : ''}
       telegram: telegramBulletin,
       deaths2026,
       fatal2026: stats2026.fatal_accidents || 0,
-      injuries2026: stats2026.injuries || 0,
-      data_period: period.rangeLabel,
+      injuries2026: stats2026.injuries,
+      data_period: statisticsPeriod.rangeLabel,
       yoyPct2025
     };
   }

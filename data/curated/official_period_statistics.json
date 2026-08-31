@@ -1,0 +1,46 @@
+[
+  {
+    "year": 2026,
+    "period_start": "2026-01-01",
+    "period_end": "2026-07-31",
+    "fatal_accidents": 19,
+    "deaths": 23,
+    "injuries": null,
+    "classification": "OFFICIAL",
+    "comparison_period_label": "Ocak–Temmuz",
+    "comparison_current_deaths": 23,
+    "comparison_2025_deaths": 27,
+    "comparison_2024_deaths": 28,
+    "sources": [
+      "https://radyoguven.gov.ct.tr/Sayfa/HaberDetay/14317"
+    ]
+  },
+  {
+    "year": 2026,
+    "period_start": "2026-01-01",
+    "period_end": "2026-08-31",
+    "fatal_accidents": 22,
+    "deaths": 27,
+    "injuries": null,
+    "classification": "VERIFIED_COMPOSITE",
+    "comparison_period_label": "Ocak–Temmuz",
+    "comparison_current_deaths": 23,
+    "comparison_2025_deaths": 27,
+    "comparison_2024_deaths": 28,
+    "derivation": [
+      "1 Ocak–31 Temmuz resmî PGM toplamı: 23 can kaybı / 19 ölümlü kaza",
+      "7 Ağustos Geçitköy kazası: +1 can kaybı / +1 ölümlü kaza",
+      "23 Ağustos'ta Melis Luman'ın yaşamını yitirmesi: +1 can kaybı / +1 ölümlü kaza",
+      "29 Ağustos Ziyamet kazası: +2 can kaybı / +1 ölümlü kaza",
+      "Türetilmiş 31 Ağustos toplamı: 27 can kaybı / 22 ölümlü kaza"
+    ],
+    "sources": [
+      "https://radyoguven.gov.ct.tr/Sayfa/HaberDetay/14317",
+      "https://www.kktcmedya.com/gecitkoy-deki-kazada-hayatini-kaybeden-kisinin-kimligi-belli-oldu-h39910.html",
+      "https://www.detaykibris.com/guzelyurt-lefkosa-anayolundaki-kazada-aci-gelisme-36-yasindaki-surucu-hayatini-kaybe-358581h.htm",
+      "https://www.yeniduzen.com/trafige-bir-can-daha-198847h.htm",
+      "https://www.yeniduzen.com/72-yasindaki-mehmet-kirlar-hayata-tutunamadi-198849h.htm",
+      "https://www.mykibris.com/gundem/haber/dunku-kazada-agir-yaralanmisti-mehmet-kirlar-kurtarilamadi-74046"
+    ]
+  }
+]

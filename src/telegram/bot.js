@@ -37,7 +37,7 @@ function persistBulletinState(bulletin, publishedState, observation) {
     bulletin.data_period,
     bulletin.fatal2026,
     bulletin.deaths2026,
-    bulletin.injuries2026,
+    bulletin.injuries2026 ?? -1,
     bulletin.yoyPct2025,
     observation,
     '[]',
@@ -61,7 +61,7 @@ export class TelegramBotService {
       case '/2026': {
         const m = await AnalyticsEngine.get2026Monitor();
         const sign = m.yoy_change_pct >= 0 ? '+' : '';
-        return `🚦 **KKTC TRAFİK 2026 BİLANÇOSU**\n📅 Dönem: ${m.data_period_label}\n\n☠️ **Can Kaybı**: ${m.deaths}\n🚨 **Ölümlü Kaza**: ${m.fatal_accidents}\n🏥 **Yaralı**: ${m.injuries}\n\n📅 **2025 Aynı Dönem**: ${m.same_period_2025.deaths} Can Kaybı\n📈 **Değişim**: ${sign}${m.yoy_change_pct}%\n\n⏱️ **Geçen Gün**: ${m.days_elapsed} gün\n📊 **Aylık Ortalama**: ${m.deaths_per_month} ölüm/ay\n\n*Son Güncelleme: 31 Temmuz 2026*`;
+        return `🚦 **KKTC TRAFİK 2026 BİLANÇOSU**\n📅 Dönem: ${m.data_period_label}\n\n☠️ **Can Kaybı**: ${m.deaths}\n🚨 **Ölümlü Kaza**: ${m.fatal_accidents}\n🏥 **Yaralı**: ${m.injuries ?? 'Doğrulanmış toplu sayı yayımlanmadı'}\n\n📅 **2025 Aynı Dönem**: ${m.same_period_2025.deaths} Can Kaybı\n📈 **Değişim**: ${sign}${m.yoy_change_pct}%\n\n⏱️ **Geçen Gün**: ${m.days_elapsed} gün\n📊 **Aylık Ortalama**: ${m.deaths_per_month} ölüm/ay\n\n*Son Güncelleme: 31 Temmuz 2026*`;
       }
 
       case '/today': {
@@ -73,11 +73,12 @@ export class TelegramBotService {
       }
 
       case '/week': {
-        return `📅 **SON 7 GÜN TRAFİK RAPORU**\n\n• Toplam Kaza: 14\n• Ölümlü Kaza: 1\n• Can Kaybı: 1\n• Yaralı: 6\n\n*Polis Basın Subaylığı ve TAK Raporlarından Derlenmiştir.*`;
+        return `📅 **SON 7 GÜN TRAFİK RAPORU**\n\nDoğrulanmış haftalık toplu veri henüz yayıma hazır değil.`;
       }
 
       case '/districts': {
         const dists = await AnalyticsEngine.getDistrictStats();
+        if (dists.length === 0) return `📍 **İLÇELERE GÖRE KAZA DAĞILIMI**\n\nDoğrulanmış ilçe kırılımı henüz yayıma hazır değil.`;
         let msg = `📍 **İLÇELERE GÖRE KAZA DAĞILIMI**\n\n`;
         dists.forEach(d => {
           msg += `• **${d.district}**: ${d.total_deaths} Can Kaybı (${d.fatal_accidents} Ölümlü Kaza)\n`;
@@ -87,6 +88,7 @@ export class TelegramBotService {
 
       case '/causes': {
         const causes = await AnalyticsEngine.getCauseStats();
+        if (causes.length === 0) return `⚠️ **BİLDİRİLEN KAZA NEDENLERİ**\n\nDoğrulanmış neden kırılımı henüz yayıma hazır değil.`;
         let msg = `⚠️ **BİLDİRİLEN KAZA NEDENLERİ**\n\n`;
         causes.slice(0, 5).forEach(c => {
           msg += `• **${c.cause_label}**: ${c.accident_count} Vaka (${c.death_count} Ölü)\n`;
@@ -95,11 +97,11 @@ export class TelegramBotService {
       }
 
       case '/hotspots': {
-        return `📍 **YÜKSEK RİSKLİ YOL SEGMENTLERİ**\n\n1. Girne - Lefkoşa Anayolu (Ciklos Mevkii)\n2. Lefkoşa - Gazimağusa Anayolu (Haspolat Çemberi)\n3. Bedrettin Demirel Caddesi (Lefkoşa)\n4. Gazimağusa - İskele Anayolu`;
+        return `📍 **YÜKSEK RİSKLİ YOL SEGMENTLERİ**\n\nDoğrulanmış konum kırılımı henüz yayıma hazır değil.`;
       }
 
       case '/history': {
-        return `📈 **KKTC TRAFİK TARİHÇESİ (1975 - 2026)**\n\n• 1975-1984: Yıllık Ortalama 35 Can Kaybı\n• 1985-1994: Yıllık Ortalama 47 Can Kaybı\n• 1995-2004: Yıllık Ortalama 50 Can Kaybı (Zirve: 2004 - 76 Can Kaybı)\n• 2005-2014: Yıllık Ortalama 38 Can Kaybı\n• 2015-2024: Yıllık Ortalama 33 Can Kaybı\n• 2026 YTD (Ocak-Temmuz): 31 Can Kaybı`;
+        return `📈 **KKTC TRAFİK TARİHÇESİ (1975 - 2026)**\n\n• 1975-1984: Yıllık Ortalama 35 Can Kaybı\n• 1985-1994: Yıllık Ortalama 47 Can Kaybı\n• 1995-2004: Yıllık Ortalama 50 Can Kaybı (Zirve: 2004 - 76 Can Kaybı)\n• 2005-2014: Yıllık Ortalama 38 Can Kaybı\n• 2015-2024: Yıllık Ortalama 33 Can Kaybı\n• 2026 YTD (Ocak-Temmuz): 23 Can Kaybı`;
       }
 
       case '/sources': {
@@ -111,7 +113,7 @@ export class TelegramBotService {
     }
   }
 
-  async reserveDailyBroadcast(targetDate, reservationId) {
+  async reserveDailyBroadcast(targetDate, reservationId, allowCorrectionRepublish = false) {
     if (!reservationId) return { status: 'RESERVATION_FAILED', error: 'Reservation ID is required' };
     const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
     if (bulletin.safety_class === 'DO_NOT_PUBLISH') {
@@ -122,7 +124,20 @@ export class TelegramBotService {
       'SELECT published_telegram, notable_observation FROM bulletins WHERE bulletin_date = ? LIMIT 1',
       [bulletin.targetDate]
     )[0];
-    if (existing?.published_telegram === 1) return { status: 'ALREADY_PUBLISHED' };
+    if (existing?.published_telegram === 1 && !allowCorrectionRepublish) {
+      return { status: 'ALREADY_PUBLISHED' };
+    }
+
+    if (existing?.published_telegram === 1 && allowCorrectionRepublish) {
+      const correctionNote = `CORRECTION_RESERVATION:${reservationId}`;
+      const saved = executeDb(
+        'UPDATE bulletins SET notable_observation = ? WHERE bulletin_date = ? AND published_telegram = 1',
+        [correctionNote, bulletin.targetDate]
+      );
+      return saved.success && saved.rows_affected === 1
+        ? { status: 'RESERVED_CORRECTION' }
+        : { status: 'RESERVATION_FAILED', error: saved.error || 'Could not persist correction reservation' };
+    }
 
     const reservationNote = `RESERVATION:${reservationId}`;
     if (existing?.published_telegram === -1) {
@@ -141,9 +156,17 @@ export class TelegramBotService {
       'DELETE FROM bulletins WHERE bulletin_date = ? AND published_telegram = -1 AND notable_observation = ?',
       [targetDate, `RESERVATION:${reservationId}`]
     );
-    return released.success && released.rows_affected === 1
-      ? { status: 'RELEASED' }
-      : { status: 'RELEASE_FAILED', error: released.error || 'Matching reservation was not found' };
+    if (released.success && released.rows_affected === 1) return { status: 'RELEASED' };
+
+    const correctionReleased = executeDb(
+      `UPDATE bulletins
+       SET notable_observation = 'CORRECTION_RELEASED'
+       WHERE bulletin_date = ? AND published_telegram = 1 AND notable_observation = ?`,
+      [targetDate, `CORRECTION_RESERVATION:${reservationId}`]
+    );
+    return correctionReleased.success && correctionReleased.rows_affected === 1
+      ? { status: 'RELEASED_CORRECTION' }
+      : { status: 'RELEASE_FAILED', error: correctionReleased.error || released.error || 'Matching reservation was not found' };
   }
 
   async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined, reservationId = undefined) {
@@ -154,7 +177,12 @@ export class TelegramBotService {
         'SELECT published_telegram, notable_observation FROM bulletins WHERE bulletin_date = ? LIMIT 1',
         [bulletin.targetDate]
       )[0];
-      if (existing?.published_telegram === 1) {
+      const normalReservation = `RESERVATION:${reservationId}`;
+      const correctionReservation = `CORRECTION_RESERVATION:${reservationId}`;
+      const hasCorrectionReservation = existing?.published_telegram === 1
+        && reservationId
+        && existing.notable_observation === correctionReservation;
+      if (existing?.published_telegram === 1 && !hasCorrectionReservation) {
         console.log(`[TelegramBot] ${bulletin.targetDate} bulletin already published; duplicate skipped.`);
         return { status: 'ALREADY_PUBLISHED' };
       }
@@ -162,8 +190,9 @@ export class TelegramBotService {
         return { status: 'RESERVATION_REQUIRED' };
       }
       if (reservationId) {
-        const expectedReservation = `RESERVATION:${reservationId}`;
-        if (existing?.published_telegram !== -1 || existing.notable_observation !== expectedReservation) {
+        const hasNormalReservation = existing?.published_telegram === -1
+          && existing.notable_observation === normalReservation;
+        if (!hasNormalReservation && !hasCorrectionReservation) {
           return { status: existing?.published_telegram === -1 ? 'ALREADY_RESERVED' : 'RESERVATION_REQUIRED' };
         }
       }

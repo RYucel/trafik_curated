@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      correction_republish:
+        description: 'Republish a previously sent date only to correct its facts or public link'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -83,6 +88,7 @@ jobs:
           PILOT_TARGET_DATE: ${{ inputs.target_date }}
           TELEGRAM_LIVE_ENABLED: 'true'
           PUBLIC_BULLETIN_BASE_URL: ${{ vars.PUBLIC_BULLETIN_BASE_URL }}
+          ALLOW_CORRECTION_REPUBLISH: ${{ inputs.correction_republish }}
         run: |
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           node scripts/prepare_approved_broadcast.js "$TARGET_DATE"

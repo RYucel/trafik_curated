@@ -14,7 +14,7 @@ export class ArticleFetcher {
       const res = await fetch(article.url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'KKTC-Traffic-Intelligence-Bot/1.0 (+https://kktctrafik.org)',
+          'User-Agent': 'KKTC-Traffic-Intelligence-Bot/1.0 (+https://github.com/RYucel/trafik_curated)',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         }
       });

@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS bulletins (
     data_period TEXT NOT NULL,
     fatal_accidents_2026 INTEGER NOT NULL,
     deaths_2026 INTEGER NOT NULL,
-    injuries_2026 INTEGER NOT NULL,
+    injuries_2026 INTEGER NOT NULL, -- -1 means no verified aggregate is available
     yoy_change_pct REAL,
     notable_observation TEXT,
     sources_list_json TEXT,

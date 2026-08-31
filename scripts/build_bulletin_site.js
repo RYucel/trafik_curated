@@ -96,6 +96,7 @@ export function buildBulletinSite({ sourceRoot, outputRoot, basePath = '/' }) {
     .filter(entry => entry.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(entry.name))
     .map(entry => ({ date: entry.name, file: path.join(sourceRoot, entry.name, 'bulletin.md') }))
     .filter(entry => fs.existsSync(entry.file))
+    .filter(entry => fs.readFileSync(entry.file, 'utf8').includes('**İstatistik Niteliği**'))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   fs.mkdirSync(outputRoot, { recursive: true });

@@ -13,10 +13,15 @@ if (!reservationId) {
 }
 
 const { TelegramBotService } = await import('../src/telegram/bot.js');
-const result = await new TelegramBotService().reserveDailyBroadcast(targetDate, reservationId);
+const allowCorrectionRepublish = process.env.ALLOW_CORRECTION_REPUBLISH === 'true';
+const result = await new TelegramBotService().reserveDailyBroadcast(
+  targetDate,
+  reservationId,
+  allowCorrectionRepublish
+);
 console.log(`[LiveBroadcast] ${targetDate} reservation: ${result.status}`);
 
-if (!['RESERVED', 'ALREADY_PUBLISHED'].includes(result.status)) {
+if (!['RESERVED', 'RESERVED_CORRECTION', 'ALREADY_PUBLISHED'].includes(result.status)) {
   console.error(`[LiveBroadcast] Reservation did not complete: ${result.error || result.status}`);
   process.exit(1);
 }
