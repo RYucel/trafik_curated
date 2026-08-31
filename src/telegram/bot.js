@@ -6,6 +6,45 @@ import { executeDb, queryDb } from '../lib/db.js';
 
 dotenv.config();
 
+function telegramPlainText(bulletin) {
+  return bulletin.telegram.replace(/\*\*/g, '');
+}
+
+function persistBulletinState(bulletin, publishedState, observation) {
+  return executeDb(`
+    INSERT INTO bulletins (
+      bulletin_date, title, content_markdown, content_telegram, data_period,
+      fatal_accidents_2026, deaths_2026, injuries_2026, yoy_change_pct,
+      notable_observation, sources_list_json, published_telegram
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(bulletin_date) DO UPDATE SET
+      title = excluded.title,
+      content_markdown = excluded.content_markdown,
+      content_telegram = excluded.content_telegram,
+      data_period = excluded.data_period,
+      fatal_accidents_2026 = excluded.fatal_accidents_2026,
+      deaths_2026 = excluded.deaths_2026,
+      injuries_2026 = excluded.injuries_2026,
+      yoy_change_pct = excluded.yoy_change_pct,
+      notable_observation = excluded.notable_observation,
+      sources_list_json = excluded.sources_list_json,
+      published_telegram = excluded.published_telegram
+  `, [
+    bulletin.targetDate,
+    'KKTC TRAFİK GÜNLÜK BÜLTENİ',
+    bulletin.markdown,
+    telegramPlainText(bulletin),
+    bulletin.data_period,
+    bulletin.fatal2026,
+    bulletin.deaths2026,
+    bulletin.injuries2026,
+    bulletin.yoyPct2025,
+    observation,
+    '[]',
+    publishedState
+  ]);
+}
+
 export class TelegramBotService {
   constructor() {
     this.token = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -72,17 +111,47 @@ export class TelegramBotService {
     }
   }
 
-  async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined) {
+  async reserveDailyBroadcast(targetDate, reservationId) {
+    if (!reservationId) return { status: 'RESERVATION_FAILED', error: 'Reservation ID is required' };
+    const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
+    if (bulletin.safety_class === 'DO_NOT_PUBLISH') {
+      return { status: 'BLOCKED', reason: bulletin.safety_reason };
+    }
+
+    const existing = queryDb(
+      'SELECT published_telegram, notable_observation FROM bulletins WHERE bulletin_date = ? LIMIT 1',
+      [bulletin.targetDate]
+    )[0];
+    if (existing?.published_telegram === 1) return { status: 'ALREADY_PUBLISHED' };
+
+    const reservationNote = `RESERVATION:${reservationId}`;
+    if (existing?.published_telegram === -1) {
+      return { status: existing.notable_observation === reservationNote ? 'RESERVED' : 'ALREADY_RESERVED' };
+    }
+
+    const saved = persistBulletinState(bulletin, -1, reservationNote);
+    return saved.success
+      ? { status: 'RESERVED' }
+      : { status: 'RESERVATION_FAILED', error: saved.error || 'Could not persist publication reservation' };
+  }
+
+  async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined, reservationId = undefined) {
     const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
 
     if (isApprovedByHuman) {
       const existing = queryDb(
-        'SELECT published_telegram FROM bulletins WHERE bulletin_date = ? LIMIT 1',
+        'SELECT published_telegram, notable_observation FROM bulletins WHERE bulletin_date = ? LIMIT 1',
         [bulletin.targetDate]
       )[0];
       if (existing?.published_telegram === 1) {
         console.log(`[TelegramBot] ${bulletin.targetDate} bulletin already published; duplicate skipped.`);
         return { status: 'ALREADY_PUBLISHED' };
+      }
+      if (reservationId) {
+        const expectedReservation = `RESERVATION:${reservationId}`;
+        if (existing?.published_telegram !== -1 || existing.notable_observation !== expectedReservation) {
+          return { status: existing?.published_telegram === -1 ? 'ALREADY_RESERVED' : 'RESERVATION_REQUIRED' };
+        }
       }
     }
 
@@ -107,7 +176,7 @@ export class TelegramBotService {
       const url = `https://api.telegram.org/bot${this.token}/sendMessage`;
       // Send public bulletins as plain text. Dynamic values such as
       // PUBLIC_SAFE contain Markdown control characters and must not be parsed.
-      const telegramText = bulletin.telegram.replace(/\*\*/g, '');
+      const telegramText = telegramPlainText(bulletin);
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,37 +193,15 @@ export class TelegramBotService {
         error: res.ok ? undefined : (response.description || 'Telegram API rejected the request')
       };
       if (res.ok) {
-        executeDb(`
-          INSERT INTO bulletins (
-            bulletin_date, title, content_markdown, content_telegram, data_period,
-            fatal_accidents_2026, deaths_2026, injuries_2026, yoy_change_pct,
-            notable_observation, sources_list_json, published_telegram
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-          ON CONFLICT(bulletin_date) DO UPDATE SET
-            title = excluded.title,
-            content_markdown = excluded.content_markdown,
-            content_telegram = excluded.content_telegram,
-            data_period = excluded.data_period,
-            fatal_accidents_2026 = excluded.fatal_accidents_2026,
-            deaths_2026 = excluded.deaths_2026,
-            injuries_2026 = excluded.injuries_2026,
-            yoy_change_pct = excluded.yoy_change_pct,
-            notable_observation = excluded.notable_observation,
-            sources_list_json = excluded.sources_list_json,
-            published_telegram = 1
-        `, [
-          bulletin.targetDate,
-          'KKTC TRAFİK GÜNLÜK BÜLTENİ',
-          bulletin.markdown,
-          telegramText,
-          bulletin.data_period,
-          bulletin.fatal2026,
-          bulletin.deaths2026,
-          bulletin.injuries2026,
-          bulletin.yoyPct2025,
-          bulletin.safety_reason,
-          '[]'
-        ]);
+        const saved = persistBulletinState(bulletin, 1, bulletin.safety_reason);
+        if (!saved.success) {
+          return {
+            status: 'PUBLISHED_UNTRACKED',
+            ok: true,
+            http_status: res.status,
+            error: saved.error || 'Telegram accepted the message but publication state was not persisted'
+          };
+        }
       }
       return result;
     } catch (e) {

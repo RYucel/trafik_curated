@@ -15,7 +15,10 @@ function getPeriod(targetDate) {
   const month = Number(monthText);
   const day = Number(dayText);
   const monthName = TURKISH_MONTHS[month - 1];
-  if (!monthName || day < 1 || day > 31) throw new Error(`Invalid bulletin target date: ${targetDate}`);
+  const parsedDate = new Date(`${targetDate}T00:00:00Z`);
+  if (!monthName || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().substring(0, 10) !== targetDate) {
+    throw new Error(`Invalid bulletin target date: ${targetDate}`);
+  }
 
   const suffix = `${monthText}-${dayText}`;
   return {

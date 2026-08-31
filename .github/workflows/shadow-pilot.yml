@@ -59,17 +59,9 @@ jobs:
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           node scripts/run_shadow_pilot.js "$TARGET_DATE"
 
-      - name: Publish approved Telegram bulletin (manual dispatch only)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
-        env:
-          TELEGRAM_LIVE_ENABLED: 'true'
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
-          node scripts/run_approved_broadcast.js "$TARGET_DATE"
-
       - name: Validate Daily Snapshot Artifacts
+        env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
         run: |
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           for artifact in ingestion.json verification.json statistics.json bulletin.md REVIEW_QUEUE.md errors.json; do
@@ -84,11 +76,38 @@ jobs:
           fi
           echo "✓ Daily snapshot artifacts validated successfully."
 
-      - name: Commit and Push Persistent SQLite Database & Snapshot Artifacts
+      - name: Reserve approved Telegram bulletin (manual dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
+          TELEGRAM_LIVE_ENABLED: 'true'
+        run: |
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          node scripts/prepare_approved_broadcast.js "$TARGET_DATE"
+
+      - name: Commit and Push Snapshot & Publication Reservation
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(pilot): automated daily shadow pilot snapshot [skip ci]"
           file_pattern: "db/kktc_traffic.db data/pilot/*"
+
+      - name: Publish approved Telegram bulletin (manual dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
+          TELEGRAM_LIVE_ENABLED: 'true'
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          node scripts/run_approved_broadcast.js "$TARGET_DATE"
+
+      - name: Commit successful Telegram publication state
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(live): record approved Telegram publication [skip ci]"
+          file_pattern: "db/kktc_traffic.db"
 
       - name: Upload Daily Snapshot Artifacts
         uses: actions/upload-artifact@v4
