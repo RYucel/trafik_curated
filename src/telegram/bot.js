@@ -102,7 +102,13 @@ export class TelegramBotService {
           parse_mode: 'Markdown'
         })
       });
-      return { status: res.ok ? 'PUBLISHED' : 'FAILED', ok: res.ok };
+      const response = await res.json().catch(() => ({}));
+      return {
+        status: res.ok ? 'PUBLISHED' : 'FAILED',
+        ok: res.ok,
+        http_status: res.status,
+        error: res.ok ? undefined : (response.description || 'Telegram API rejected the request')
+      };
     } catch (e) {
       console.error('Telegram broadcast error:', e);
       return { status: 'ERROR', error: e.message };

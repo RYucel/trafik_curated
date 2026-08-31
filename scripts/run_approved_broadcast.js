@@ -8,9 +8,9 @@ if (process.env.TELEGRAM_LIVE_ENABLED !== 'true') {
 
 const { TelegramBotService } = await import('../src/telegram/bot.js');
 const result = await new TelegramBotService().sendDailyBroadcast(true, targetDate);
-console.log(`[LiveBroadcast] ${targetDate}: ${result.status}`);
+console.log(`[LiveBroadcast] ${targetDate}: ${result.status}${result.http_status ? ` (HTTP ${result.http_status})` : ''}`);
 
 if (result.status !== 'PUBLISHED') {
-  console.error(`[LiveBroadcast] Publication did not complete: ${result.status}`);
+  console.error(`[LiveBroadcast] Publication did not complete: ${result.error || result.status}`);
   process.exit(1);
 }
