@@ -91,7 +91,7 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   const publish = workflow.indexOf('Publish approved Telegram bulletin');
   const persistPublication = workflow.indexOf('Commit successful Telegram publication state');
   assert.ok(reserve < persistReservation && persistReservation < publish && publish < persistPublication);
-  assert.match(workflow, /if: \$\{\{ always\(\)/);
+  assert.match(workflow, /if: \$\{\{ always\(\) && steps\.reserve_broadcast\.outcome == 'success'/);
 }
 
 async function testImpossibleTargetDateIsRejected() {
