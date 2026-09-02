@@ -265,6 +265,10 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   assert.strictEqual(publicUrlBindings.length, 2);
   assert.match(workflow, /correction_republish:\s+[\s\S]*?type: boolean[\s\S]*?default: false/);
   assert.match(workflow, /ALLOW_CORRECTION_REPUBLISH: \$\{\{ inputs\.correction_republish \}\}/);
+  assert.match(
+    workflow,
+    /- name: Execute Daily Shadow Production Pilot\s+if: \$\{\{ !\(github\.event_name == 'workflow_dispatch' && inputs\.correction_republish == true\) \}\}/
+  );
 
   const reserve = workflow.indexOf('Reserve approved Telegram bulletin');
   const persistReservation = workflow.indexOf('Commit and Push Snapshot & Publication Reservation');

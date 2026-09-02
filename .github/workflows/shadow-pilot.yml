@@ -54,6 +54,7 @@ jobs:
         run: npm ci || npm install
 
       - name: Execute Daily Shadow Production Pilot
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.correction_republish == true) }}
         env:
           PILOT_TARGET_DATE: ${{ inputs.target_date }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
