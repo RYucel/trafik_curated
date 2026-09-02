@@ -38,6 +38,10 @@ assert.ok(
   'A pilot run with failed feeds must not be marked VERIFIED_RUN'
 );
 assert.ok(
+  !pilotSource.includes('sendDailyBroadcast(') && !pilotSource.includes('TelegramBotService'),
+  'Shadow pilot must never create or publish a Telegram broadcast'
+);
+assert.ok(
   workflowSource.includes('TARGET_DATE="${PILOT_TARGET_DATE:-$(date +\'%Y-%m-%d\')}"') &&
     workflowSource.includes('verification.json') &&
     workflowSource.includes('data/pilot/$TARGET_DATE/ingestion.json'),

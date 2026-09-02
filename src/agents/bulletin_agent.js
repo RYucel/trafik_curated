@@ -10,6 +10,7 @@ const TURKISH_MONTHS = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
 ];
+const DEFAULT_PUBLIC_BULLETIN_BASE_URL = 'https://ryucel.github.io/trafik_curated';
 
 function getPeriod(targetDate) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(targetDate);
@@ -41,15 +42,60 @@ function getPeriod(targetDate) {
 }
 
 function getPublicBulletinUrl(targetDate) {
-  const configuredBase = process.env.PUBLIC_BULLETIN_BASE_URL?.trim();
-  if (!configuredBase) return null;
+  const configuredBase = process.env.PUBLIC_BULLETIN_BASE_URL?.trim() || DEFAULT_PUBLIC_BULLETIN_BASE_URL;
   try {
     const base = new URL(configuredBase);
-    if (!['http:', 'https:'].includes(base.protocol)) return null;
+    if (!['http:', 'https:'].includes(base.protocol)) throw new Error('Unsupported public bulletin protocol');
     return `${base.toString().replace(/\/$/, '')}/bulletins/${targetDate}/`;
   } catch {
-    return null;
+    return `${DEFAULT_PUBLIC_BULLETIN_BASE_URL}/bulletins/${targetDate}/`;
   }
+}
+
+function getNicosiaDate(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Nicosia',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(parsed);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getTargetDayTrafficNews(targetDate) {
+  const candidates = queryDb(`
+    SELECT DISTINCT news.title, news.url, news.source_name, news.published_at
+    FROM news_articles AS news
+    INNER JOIN (
+      SELECT source_url
+      FROM accidents
+      WHERE verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
+
+      UNION
+
+      SELECT sources.source_url
+      FROM accident_sources AS sources
+      INNER JOIN accidents AS accidents ON accidents.accident_id = sources.accident_id
+      WHERE accidents.verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
+        AND sources.verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
+    ) AS verified_sources ON verified_sources.source_url = news.url
+    WHERE news.traffic_relevance = 1
+      AND news.processing_status = 'EXTRACTED'
+  `);
+
+  const seenUrls = new Set();
+  return candidates
+    .filter(article => getNicosiaDate(article.published_at) === targetDate)
+    .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+    .filter(article => {
+      if (!article.url || seenUrls.has(article.url)) return false;
+      seenUrls.add(article.url);
+      return true;
+    })
+    .slice(0, 5);
 }
 
 function getCuratedPeriodStats(targetDate, year) {
@@ -113,14 +159,7 @@ export class BulletinAgent {
     const yoyPct2024 = deaths2024 > 0 ? Number((((comparisonDeaths2026 - deaths2024) / deaths2024) * 100).toFixed(1)) : null;
     const formatChange = value => value === null ? 'karşılaştırılamıyor' : `${value >= 0 ? '+' : ''}${value}%`;
     const publicBulletinUrl = getPublicBulletinUrl(targetDate);
-
-    // 3. Fetch verified incidents in past 24 hours / last 7 days
-    const recentVerified = queryDb(`
-      SELECT accident_id, event_date, district, location_normalized, death_count, injury_count, source_name, source_tier, verification_status
-      FROM accidents
-      WHERE verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED') AND event_date = ?
-      ORDER BY event_date DESC LIMIT 5
-    `, [targetDate]);
+    const targetDayTrafficNews = getTargetDayTrafficNews(targetDate);
 
     const unverifiedItems = queryDb(`
       SELECT accident_id, event_date, district, location_normalized, death_count, source_name
@@ -139,9 +178,9 @@ export class BulletinAgent {
 
 ---
 
-## 🔴 Son 24 Saat / Doğrulanmış Vakalar (VERIFIED)
+## 📰 Günlük Trafik Haberleri (Yerel Tarih)
 
-${recentVerified.length > 0 ? recentVerified.map(acc => `- 🔴 **[VERIFIED]** ${acc.event_date} | ${acc.district} - ${acc.location_normalized} | ${acc.death_count} Ölü, ${acc.injury_count} Yaralı *(Kaynak: ${acc.source_name} - ${acc.source_tier})*`).join('\n') : 'Son 24 saat içerisinde yeni ölümlü vaka bildirilmemiştir.'}
+${targetDayTrafficNews.length > 0 ? targetDayTrafficNews.map(article => `- [${article.title}](${article.url}) *(${article.source_name})*`).join('\n') : 'Bu raporlama günü için doğrulanmış trafik haberi bulunmamaktadır.'}
 
 ---
 
@@ -200,8 +239,11 @@ Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve
 ☠️ **${deaths2026} Can Kaybı** (${stats2026.fatal_accidents || 0} Ölümlü Kaza)
 📅 ${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel} karşılaştırması: ${period.year} ${comparisonDeaths2026}, ${period.year - 1} ${deaths2025} (${formatChange(yoyPct2025)}), ${period.year - 2} ${deaths2024} (${formatChange(yoyPct2024)})
 
+📰 Günlük Trafik Haberleri (Yerel Tarih)
+${targetDayTrafficNews.length > 0 ? targetDayTrafficNews.map(article => `• ${article.title}\n${article.url}`).join('\n') : 'Doğrulanmış trafik haberi bulunmamaktadır.'}
+
 🔎 Kaynaklar: Resmî açıklamalar ve doğrulanmış medya kayıtları.
-${publicBulletinUrl ? `🌐 Ayrıntılı bülten: ${publicBulletinUrl}` : ''}
+🌐 Ayrıntılı bülten: ${publicBulletinUrl}
     `.trim();
 
     return {

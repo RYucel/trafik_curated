@@ -58,8 +58,6 @@ jobs:
           PILOT_TARGET_DATE: ${{ inputs.target_date }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           node scripts/run_shadow_pilot.js "$TARGET_DATE"

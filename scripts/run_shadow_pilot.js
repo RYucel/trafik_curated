@@ -8,7 +8,6 @@ import { ArticleFetcher } from '../src/ingestion/article_fetcher.js';
 import { AccidentExtractor } from '../src/ingestion/accident_extractor.js';
 import { AnalyticsEngine } from '../src/analytics/engine.js';
 import { BulletinAgent } from '../src/agents/bulletin_agent.js';
-import { TelegramBotService } from '../src/telegram/bot.js';
 
 import { KibrisGazetesiAdapter } from '../src/ingestion/adapters/kibris_gazetesi.js';
 import { HaberKibrisAdapter } from '../src/ingestion/adapters/haber_kibris.js';
@@ -225,10 +224,8 @@ async function executeDailyShadowPilot(targetDate = null) {
   // 8. Errors log
   fs.writeFileSync(path.join(snapshotDir, 'errors.json'), JSON.stringify(runErrors, null, 2));
 
-  // 9. Enforce SHADOW MODE (Zero public Telegram publication)
-  const bot = new TelegramBotService();
-  const shadowBroadcast = await bot.sendDailyBroadcast(false, dateStr);
-  console.log(`[SHADOW PILOT] Daily Telegram Broadcast Gated: Status = ${shadowBroadcast.status}`);
+  // 9. Enforce SHADOW MODE: scheduled and unapproved runs must never contact Telegram.
+  console.log('[SHADOW PILOT] Telegram publication skipped (shadow mode).');
 
   // 10. Advance the seven-day pilot from persisted daily snapshots.
   const pilotRoot = path.join(process.cwd(), 'data', 'pilot');

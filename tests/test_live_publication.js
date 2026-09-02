@@ -18,9 +18,20 @@ async function testBulletinUsesTargetDatePeriod() {
   assert.match(bulletin.markdown, /Türetilmiş 31 Ağustos toplamı: 27 can kaybı \/ 22 ölümlü kaza/);
 }
 
-async function testTelegramBulletinOmitsUndeployedPublicLink() {
-  const bulletin = await BulletinAgent.generateDailyBulletin('2026-08-31');
-  assert.doesNotMatch(bulletin.telegram, /kktctrafik\.org\/bulletins/);
+async function testTelegramBulletinUsesDefaultPagesLink() {
+  const originalBaseUrl = process.env.PUBLIC_BULLETIN_BASE_URL;
+  delete process.env.PUBLIC_BULLETIN_BASE_URL;
+  try {
+    const bulletin = await BulletinAgent.generateDailyBulletin('2026-08-31');
+    assert.match(
+      bulletin.telegram,
+      /https:\/\/ryucel\.github\.io\/trafik_curated\/bulletins\/2026-08-31\//
+    );
+    assert.doesNotMatch(bulletin.telegram, /kktctrafik\.org\/bulletins/);
+  } finally {
+    if (originalBaseUrl === undefined) delete process.env.PUBLIC_BULLETIN_BASE_URL;
+    else process.env.PUBLIC_BULLETIN_BASE_URL = originalBaseUrl;
+  }
 }
 
 async function testTelegramBulletinUsesConfiguredPagesUrl() {
@@ -35,6 +46,74 @@ async function testTelegramBulletinUsesConfiguredPagesUrl() {
   } finally {
     if (originalBaseUrl === undefined) delete process.env.PUBLIC_BULLETIN_BASE_URL;
     else process.env.PUBLIC_BULLETIN_BASE_URL = originalBaseUrl;
+  }
+}
+
+async function testTelegramBulletinListsVerifiedTrafficNewsLinksForTargetDay() {
+  const targetDate = '2099-12-24';
+  const articleUrl = 'https://example.test/traffic-news-2099-12-24';
+  const articleTitle = 'Lefkoşa çevre yolunda yaralanmalı trafik kazası';
+  const verifiedAccidentId = 'ACC-20991224-TEST-VERIFIED';
+  const unverifiedArticleUrl = 'https://example.test/unverified-traffic-news-2099-12-24';
+  const unverifiedArticleTitle = 'Doğrulanmamış trafik haberi';
+  const unverifiedAccidentId = 'ACC-20991224-TEST-UNVERIFIED';
+  try {
+    executeDb('DELETE FROM news_articles WHERE url = ?', [articleUrl]);
+    executeDb('DELETE FROM news_articles WHERE url = ?', [unverifiedArticleUrl]);
+    executeDb('DELETE FROM accidents WHERE accident_id IN (?, ?)', [verifiedAccidentId, unverifiedAccidentId]);
+    executeDb(`
+      INSERT INTO news_articles (
+        source_id, source_name, title, url, published_at, content_hash,
+        traffic_relevance, relevance_score, processing_status
+      ) VALUES (?, ?, ?, ?, ?, ?, 1, 0.98, 'EXTRACTED')
+    `, [
+      'test-source',
+      'Test Haber',
+      articleTitle,
+      articleUrl,
+      'Thu, 24 Dec 2099 09:15:00 +0200',
+      'test-traffic-news-2099-12-24'
+    ]);
+    executeDb(`
+      INSERT INTO accidents (
+        accident_id, event_date, year, month, district, location_normalized,
+        fatal, death_count, injury_count, source_type, source_tier, source_name,
+        source_url, record_type, verification_status, content_hash
+      ) VALUES (?, ?, 2099, 12, 'Lefkoşa', 'Test konumu', 0, 0, 1, 'Established Media',
+        'TIER_3_ESTABLISHED_MEDIA', 'Test Haber', ?, 'INDIVIDUAL_ACCIDENT', 'VERIFIED', ?)
+    `, [verifiedAccidentId, targetDate, articleUrl, 'test-verified-accident-2099-12-24']);
+    executeDb(`
+      INSERT INTO news_articles (
+        source_id, source_name, title, url, published_at, content_hash,
+        traffic_relevance, relevance_score, processing_status
+      ) VALUES (?, ?, ?, ?, ?, ?, 1, 0.98, 'EXTRACTED')
+    `, [
+      'test-source',
+      'Test Haber',
+      unverifiedArticleTitle,
+      unverifiedArticleUrl,
+      'Thu, 24 Dec 2099 08:15:00 +0200',
+      'test-unverified-traffic-news-2099-12-24'
+    ]);
+    executeDb(`
+      INSERT INTO accidents (
+        accident_id, event_date, year, month, district, location_normalized,
+        fatal, death_count, injury_count, source_type, source_tier, source_name,
+        source_url, record_type, verification_status, content_hash
+      ) VALUES (?, ?, 2099, 12, 'Lefkoşa', 'Test konumu', 0, 0, 1, 'Established Media',
+        'TIER_3_ESTABLISHED_MEDIA', 'Test Haber', ?, 'INDIVIDUAL_ACCIDENT', 'UNVERIFIED', ?)
+    `, [unverifiedAccidentId, targetDate, unverifiedArticleUrl, 'test-unverified-accident-2099-12-24']);
+    const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
+    assert.match(bulletin.telegram, /Günlük Trafik Haberleri \(Yerel Tarih\)/);
+    assert.match(bulletin.telegram, new RegExp(articleTitle));
+    assert.match(bulletin.telegram, new RegExp(articleUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(bulletin.markdown, new RegExp(articleUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.doesNotMatch(bulletin.telegram, new RegExp(unverifiedArticleTitle));
+    assert.doesNotMatch(bulletin.telegram, new RegExp(unverifiedArticleUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally {
+    executeDb('DELETE FROM news_articles WHERE url = ?', [articleUrl]);
+    executeDb('DELETE FROM news_articles WHERE url = ?', [unverifiedArticleUrl]);
+    executeDb('DELETE FROM accidents WHERE accident_id IN (?, ?)', [verifiedAccidentId, unverifiedAccidentId]);
   }
 }
 
@@ -291,10 +370,12 @@ async function testFailedAttemptCanReleaseItsReservation() {
 
 await testBulletinUsesTargetDatePeriod();
 console.log('✓ Live bulletin uses the requested target-date period');
-await testTelegramBulletinOmitsUndeployedPublicLink();
-console.log('✓ Telegram bulletin omits the undeployed public link');
+await testTelegramBulletinUsesDefaultPagesLink();
+console.log('✓ Telegram bulletin uses the default GitHub Pages link');
 await testTelegramBulletinUsesConfiguredPagesUrl();
 console.log('✓ Telegram bulletin uses the configured GitHub Pages URL');
+await testTelegramBulletinListsVerifiedTrafficNewsLinksForTargetDay();
+console.log('✓ Telegram bulletin lists verified traffic-news links for the target day');
 await testPublishedDateIsNotSentTwice();
 console.log('✓ A published date cannot be sent twice');
 await testApprovedCorrectionCanRepublishWithPagesLink();
