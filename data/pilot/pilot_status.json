@@ -5,7 +5,7 @@
   "days_pending": 0,
   "total_days": 4,
   "latest_run_status": "VERIFIED_RUN",
-  "telegram_mode": "SHADOW_MODE_GATED",
+  "telegram_mode": "DELEGATED_TO_BROADCAST_STEP",
   "new_canonical_accidents_day_1": 0,
   "total_canonical_accidents_db": 536,
   "total_errors": 0,

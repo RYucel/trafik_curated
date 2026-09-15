@@ -1,8 +1,8 @@
 # 🚦 KKTC TRAFİK GÜNLÜK BÜLTENİ
 
 **Tarih**: 2026-09-15  
-**Güvenlik Sınıfı**: `DO_NOT_PUBLISH` (Kritik olgusal çelişki tespit edildi (1 çözülmemiş ölüm/yaralanma sayısı uyuşmazlığı). Otomatik yayın ENGELLENDİ.)  
-**Veri Kapsamı**: 1 Ocak 2026 – 31 Ağustos 2026 (YTD / Kısmi Yıl)
+**Güvenlik Sınıfı**: `REVIEW_REQUIRED` (6 vaka tek kaynaklı olarak doğrulanmayı bekliyor; bültende UNVERIFIED olarak işaretlenmiştir.)  
+**Veri Kapsamı**: 1 Ocak 2026 – 6 Eylül 2026 (YTD / Kısmi Yıl)
 **İstatistik Niteliği**: VERIFIED_COMPOSITE — olay kayıtlarının ham toplamı değildir
 
 ---
@@ -23,10 +23,10 @@ Bu raporlama günü için doğrulanmış trafik haberi bulunmamaktadır.
 
 ---
 
-## 📊 2026 YTD (Ocak–Ağustos İstatistiksel Gözlem)
+## 📊 2026 YTD (Ocak–Eylül İstatistiksel Gözlem)
 
-- **Can Kaybı**: 27
-- **Ölümlü Kaza Sayısı**: 22
+- **Can Kaybı**: 28
+- **Ölümlü Kaza Sayısı**: 23
 - **Yaralı Sayısı**: Bu dönem için doğrulanmış toplu sayı yayımlanmadı.
 
 ---
@@ -56,18 +56,17 @@ Bu raporlama günü için doğrulanmış trafik haberi bulunmamaktadır.
 
 Dönem toplamı kaynakları:
 - https://radyoguven.gov.ct.tr/Sayfa/HaberDetay/14317
-- https://www.kktcmedya.com/gecitkoy-deki-kazada-hayatini-kaybeden-kisinin-kimligi-belli-oldu-h39910.html
-- https://www.detaykibris.com/guzelyurt-lefkosa-anayolundaki-kazada-aci-gelisme-36-yasindaki-surucu-hayatini-kaybe-358581h.htm
-- https://www.yeniduzen.com/trafige-bir-can-daha-198847h.htm
-- https://www.yeniduzen.com/72-yasindaki-mehmet-kirlar-hayata-tutunamadi-198849h.htm
-- https://www.mykibris.com/gundem/haber/dunku-kazada-agir-yaralanmisti-mehmet-kirlar-kurtarilamadi-74046
+- https://www.gundemkibris.com/yenierenkoydeki-kazada-yaralanan-surucu-hayatini-kaybetti-kesin-olum-nedeni-arastiriliyor
+- https://www.havadiskibris.com/trafik-kazasinda-rahatsizlanan-56-yasindaki-veli-celik-hayatini-kaybetti/
+- https://www.expresskibris.com/haftalik-trafik-raporu-51-kaza-27-yarali
+- https://haberkibris.com/haftalik-trafik-raporu...-iki-kisi-oldu-23-kisi-yaralandi-1529-2026-09-01.html
 
 Türetilmiş toplam hesabı:
-- 1 Ocak–31 Temmuz resmî PGM toplamı: 23 can kaybı / 19 ölümlü kaza
-- 7 Ağustos Geçitköy kazası: +1 can kaybı / +1 ölümlü kaza
-- 23 Ağustos'ta Melis Luman'ın yaşamını yitirmesi: +1 can kaybı / +1 ölümlü kaza
-- 29 Ağustos Ziyamet kazası: +2 can kaybı / +1 ölümlü kaza
-- Türetilmiş 31 Ağustos toplamı: 27 can kaybı / 22 ölümlü kaza
+- 31 Ağustos 2026 türetilmiş toplamı: 27 can kaybı / 22 ölümlü kaza
+- 28 Ağustos Yenierenköy (Ecevit Caddesi) kazasında yaralanan V.Ç. (56), 4 Eylül'de Gazimağusa Devlet Hastanesi'nde yaşamını yitirdi: +1 can kaybı / +1 ölümlü kaza
+- 31 Ağustos–6 Eylül resmî haftalık polis raporu: 51 kaza, 12 yaralanmalı, 39 hasarlı, ölümlü kaza yok
+- Türetilmiş 6 Eylül toplamı: 28 can kaybı / 23 ölümlü kaza
+- Not: Dönem sonu, resmî haftalık polis raporunun kapsadığı son tarih olan 6 Eylül'dür; 7 Eylül sonrası için henüz resmî dönem toplamı yayımlanmamıştır
 
 ---
 

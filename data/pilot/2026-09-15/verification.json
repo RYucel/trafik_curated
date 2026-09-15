@@ -7,8 +7,8 @@
     {
       "review_id": 25,
       "accident_id": "ACC-20260911-7012",
-      "issue_type": "CONFLICTING_DEATH_COUNT",
-      "title": "Can Kaybı / Yaralı Sayısı Çelişkisi (Yenidüzen)",
+      "issue_type": "CONFLICTING_INJURY_COUNT",
+      "title": "Yaralı Sayısı Çelişkisi (Yenidüzen)",
       "description": "Mevcut kayıt: 0 ölü, 1 yaralı (TIER_3_ESTABLISHED_MEDIA). Yeni kaynak (Yenidüzen - TIER_3_ESTABLISHED_MEDIA): 0 ölü, 0 yaralı.",
       "status": "PENDING",
       "match_confidence": "HIGH",
