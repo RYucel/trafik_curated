@@ -296,6 +296,28 @@ function testScheduledRunPublishesWithoutManualDispatch() {
   );
 }
 
+function testSnapshotCommitDoesNotSuppressThePagesBuild() {
+  const workflow = fs.readFileSync('.github/workflows/shadow-pilot.yml', 'utf8');
+  const pages = fs.readFileSync('.github/workflows/pages.yml', 'utf8');
+
+  // pages.yml builds the public bulletin that the Telegram message links to, and it only
+  // triggers on a push touching a bulletin. A [skip ci] marker on the snapshot commit
+  // silently stops that build and every published link 404s.
+  assert.match(pages, /paths:[\s\S]*?data\/pilot\/\*\*\/bulletin\.md/);
+  const snapshotCommit = workflow.match(
+    /commit_message: "chore\(pilot\): automated daily shadow pilot snapshot[^"]*"/
+  );
+  assert.ok(snapshotCommit, 'snapshot commit message must be present');
+  assert.doesNotMatch(snapshotCommit[0], /\[skip ci\]/);
+
+  // The snapshot must be committed before the broadcast, so the page exists by the time
+  // the link is sent.
+  assert.ok(
+    workflow.indexOf('Commit and Push Snapshot & Publication Reservation')
+      < workflow.indexOf('Publish daily Telegram bulletin')
+  );
+}
+
 function testUnattendedRunPublishesReviewRequiredButNeverDoNotPublish() {
   const bot = fs.readFileSync('src/telegram/bot.js', 'utf8');
 
@@ -439,6 +461,8 @@ testWorkflowPassesTargetDateToEveryDateSensitiveStep();
 console.log('✓ Workflow passes target_date to every date-sensitive step');
 testScheduledRunPublishesWithoutManualDispatch();
 console.log('✓ The daily scheduled run publishes without a manual dispatch');
+testSnapshotCommitDoesNotSuppressThePagesBuild();
+console.log('✓ The snapshot commit does not suppress the public bulletin build');
 testUnattendedRunPublishesReviewRequiredButNeverDoNotPublish();
 console.log('✓ An unattended run publishes REVIEW_REQUIRED but never DO_NOT_PUBLISH');
 testInjuryOnlyConflictDoesNotBlockPublication();

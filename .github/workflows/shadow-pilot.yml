@@ -93,10 +93,13 @@ jobs:
           TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
           node scripts/prepare_approved_broadcast.js "$TARGET_DATE"
 
+      # No [skip ci] here: this workflow never triggers on push, so the marker protected
+      # nothing and instead suppressed pages.yml, which builds the public bulletin the
+      # Telegram message links to. Without this build every bulletin link 404s.
       - name: Commit and Push Snapshot & Publication Reservation
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(pilot): automated daily shadow pilot snapshot [skip ci]"
+          commit_message: "chore(pilot): automated daily shadow pilot snapshot"
           file_pattern: "db/kktc_traffic.db data/pilot/*"
 
       - name: Publish daily Telegram bulletin
