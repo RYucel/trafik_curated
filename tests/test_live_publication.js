@@ -270,12 +270,59 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
     /- name: Execute Daily Shadow Production Pilot\s+if: \$\{\{ !\(github\.event_name == 'workflow_dispatch' && inputs\.correction_republish == true\) \}\}/
   );
 
-  const reserve = workflow.indexOf('Reserve approved Telegram bulletin');
+  const reserve = workflow.indexOf('Reserve daily Telegram bulletin');
   const persistReservation = workflow.indexOf('Commit and Push Snapshot & Publication Reservation');
-  const publish = workflow.indexOf('Publish approved Telegram bulletin');
+  const publish = workflow.indexOf('Publish daily Telegram bulletin');
   const persistPublication = workflow.indexOf('Commit successful Telegram publication state');
+  assert.ok(reserve !== -1 && publish !== -1);
   assert.ok(reserve < persistReservation && persistReservation < publish && publish < persistPublication);
   assert.match(workflow, /if: \$\{\{ always\(\) && steps\.reserve_broadcast\.outcome == 'success'/);
+}
+
+function testScheduledRunPublishesWithoutManualDispatch() {
+  const workflow = fs.readFileSync('.github/workflows/shadow-pilot.yml', 'utf8');
+
+  // The daily cron must reach both broadcast steps on its own; requiring a manual dispatch
+  // is what silently stopped the bulletin from going out.
+  const scheduledGuards = workflow.match(
+    /github\.event_name == 'schedule' && vars\.TELEGRAM_AUTO_PUBLISH != 'false'/g
+  ) || [];
+  assert.strictEqual(scheduledGuards.length, 2, 'both reserve and publish steps must run on schedule');
+
+  // A scheduled run carries no human approval, so it must not claim one.
+  assert.match(
+    workflow,
+    /TELEGRAM_APPROVAL_SOURCE: \$\{\{ github\.event_name == 'workflow_dispatch' && 'HUMAN' \|\| 'SCHEDULED' \}\}/
+  );
+}
+
+function testUnattendedRunPublishesReviewRequiredButNeverDoNotPublish() {
+  const bot = fs.readFileSync('src/telegram/bot.js', 'utf8');
+
+  // REVIEW_REQUIRED items already travel through the bulletin labelled UNVERIFIED, so an
+  // unattended run may publish them; only a death-count contradiction stops the broadcast.
+  assert.match(bot, /AUTO_PUBLISHABLE_SAFETY_CLASSES = \['PUBLIC_SAFE', 'REVIEW_REQUIRED'\]/);
+  assert.match(bot, /!AUTO_PUBLISHABLE_SAFETY_CLASSES\.includes\(bulletin\.safety_class\)/);
+  assert.match(bot, /if \(bulletin\.safety_class === 'DO_NOT_PUBLISH'\)/);
+
+  // Duplicate protection must cover unattended runs, which never set isApprovedByHuman.
+  assert.match(bot, /if \(isApprovedByHuman \|\| reservationId\) \{/);
+}
+
+function testInjuryOnlyConflictDoesNotBlockPublication() {
+  const extractor = fs.readFileSync('src/ingestion/accident_extractor.js', 'utf8');
+  const agent = fs.readFileSync('src/agents/bulletin_agent.js', 'utf8');
+
+  // A discrepancy in injury counts must not be filed as a death-count conflict, because
+  // only death-count conflicts contradict the published fatality statistics.
+  assert.match(extractor, /const deathsConflict = matchedAccident\.death_count !== deathCount;/);
+  assert.match(extractor, /deathsConflict \? 'CONFLICTING_DEATH_COUNT' : 'CONFLICTING_INJURY_COUNT'/);
+
+  // The bulletin blocks on death conflicts only; injury conflicts downgrade to REVIEW_REQUIRED.
+  const blockingQuery = /issue_type = 'CONFLICTING_DEATH_COUNT'`\)\[0\]\?\.cnt \|\| 0;/;
+  assert.match(agent, blockingQuery);
+  assert.match(agent, /pendingInjuryConflicts[\s\S]*?'CONFLICTING_INJURY_COUNT'/);
+  assert.match(agent, /pendingInjuryConflicts > 0\) \{\s*safetyClass = 'REVIEW_REQUIRED';/);
 }
 
 function testProjectDoesNotAdvertiseNonexistentDomain() {
@@ -390,6 +437,12 @@ await testSuccessfulPublicationIsPersisted();
 console.log('✓ A successful publication is persisted before a retry');
 testWorkflowPassesTargetDateToEveryDateSensitiveStep();
 console.log('✓ Workflow passes target_date to every date-sensitive step');
+testScheduledRunPublishesWithoutManualDispatch();
+console.log('✓ The daily scheduled run publishes without a manual dispatch');
+testUnattendedRunPublishesReviewRequiredButNeverDoNotPublish();
+console.log('✓ An unattended run publishes REVIEW_REQUIRED but never DO_NOT_PUBLISH');
+testInjuryOnlyConflictDoesNotBlockPublication();
+console.log('✓ An injury-only discrepancy does not block publication');
 testProjectDoesNotAdvertiseNonexistentDomain();
 console.log('✓ The fetcher does not advertise the nonexistent domain');
 await testPublicBotCommandsUseOfficialJulyTotals();

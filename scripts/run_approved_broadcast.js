@@ -13,7 +13,10 @@ if (!reservationId) {
 }
 
 const { TelegramBotService } = await import('../src/telegram/bot.js');
-const result = await new TelegramBotService().sendDailyBroadcast(true, targetDate, reservationId);
+// A manually dispatched run carries an explicit human approval; the daily scheduled run does
+// not, so it publishes only the safety classes bot.js marks as auto-publishable.
+const isApprovedByHuman = process.env.TELEGRAM_APPROVAL_SOURCE === 'HUMAN';
+const result = await new TelegramBotService().sendDailyBroadcast(isApprovedByHuman, targetDate, reservationId);
 console.log(`[LiveBroadcast] ${targetDate}: ${result.status}${result.http_status ? ` (HTTP ${result.http_status})` : ''}`);
 
 if (!['PUBLISHED', 'ALREADY_PUBLISHED'].includes(result.status)) {

@@ -19,7 +19,7 @@ function inspectPilotStatus() {
   }
 
   console.log(`\n📌 Pilot Start Date: ${globalStatus.pilot_start_date || '2026-08-12'}`);
-  console.log(`📌 Telegram Mode:    ${globalStatus.telegram_mode || 'SHADOW_MODE_GATED'}`);
+  console.log(`📌 Telegram Mode:    ${globalStatus.telegram_mode || 'DELEGATED_TO_BROADCAST_STEP'}`);
   console.log(`📌 Days Completed:   ${globalStatus.days_completed || 0} / ${globalStatus.total_days || 7}`);
   console.log(`📌 Latest Status:    ${globalStatus.latest_run_status || 'NOT_RUN'}\n`);
   console.log(`📌 Pilot Lifecycle:  ${globalStatus.pilot_state || 'PILOT_IN_PROGRESS'}`);

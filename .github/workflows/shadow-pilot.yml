@@ -80,9 +80,10 @@ jobs:
           fi
           echo "✓ Daily snapshot artifacts validated successfully."
 
-      - name: Reserve approved Telegram bulletin (manual dispatch only)
+      - name: Reserve daily Telegram bulletin
         id: reserve_broadcast
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        if: ${{ (github.event_name == 'schedule' && vars.TELEGRAM_AUTO_PUBLISH != 'false')
+          || (github.event_name == 'workflow_dispatch' && inputs.publish_approved == true) }}
         env:
           PILOT_TARGET_DATE: ${{ inputs.target_date }}
           TELEGRAM_LIVE_ENABLED: 'true'
@@ -98,11 +99,13 @@ jobs:
           commit_message: "chore(pilot): automated daily shadow pilot snapshot [skip ci]"
           file_pattern: "db/kktc_traffic.db data/pilot/*"
 
-      - name: Publish approved Telegram bulletin (manual dispatch only)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+      - name: Publish daily Telegram bulletin
+        if: ${{ (github.event_name == 'schedule' && vars.TELEGRAM_AUTO_PUBLISH != 'false')
+          || (github.event_name == 'workflow_dispatch' && inputs.publish_approved == true) }}
         env:
           PILOT_TARGET_DATE: ${{ inputs.target_date }}
           TELEGRAM_LIVE_ENABLED: 'true'
+          TELEGRAM_APPROVAL_SOURCE: ${{ github.event_name == 'workflow_dispatch' && 'HUMAN' || 'SCHEDULED' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PUBLIC_BULLETIN_BASE_URL: ${{ vars.PUBLIC_BULLETIN_BASE_URL }}
@@ -111,7 +114,7 @@ jobs:
           node scripts/run_approved_broadcast.js "$TARGET_DATE"
 
       - name: Commit successful Telegram publication state
-        if: ${{ always() && steps.reserve_broadcast.outcome == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_approved == true }}
+        if: ${{ always() && steps.reserve_broadcast.outcome == 'success' }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(live): record approved Telegram publication [skip ci]"

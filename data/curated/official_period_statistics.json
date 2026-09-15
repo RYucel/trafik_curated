@@ -42,5 +42,32 @@
       "https://www.yeniduzen.com/72-yasindaki-mehmet-kirlar-hayata-tutunamadi-198849h.htm",
       "https://www.mykibris.com/gundem/haber/dunku-kazada-agir-yaralanmisti-mehmet-kirlar-kurtarilamadi-74046"
     ]
+  },
+  {
+    "year": 2026,
+    "period_start": "2026-01-01",
+    "period_end": "2026-09-06",
+    "fatal_accidents": 23,
+    "deaths": 28,
+    "injuries": null,
+    "classification": "VERIFIED_COMPOSITE",
+    "comparison_period_label": "Ocak–Temmuz",
+    "comparison_current_deaths": 23,
+    "comparison_2025_deaths": 27,
+    "comparison_2024_deaths": 28,
+    "derivation": [
+      "31 Ağustos 2026 türetilmiş toplamı: 27 can kaybı / 22 ölümlü kaza",
+      "28 Ağustos Yenierenköy (Ecevit Caddesi) kazasında yaralanan V.Ç. (56), 4 Eylül'de Gazimağusa Devlet Hastanesi'nde yaşamını yitirdi: +1 can kaybı / +1 ölümlü kaza",
+      "31 Ağustos–6 Eylül resmî haftalık polis raporu: 51 kaza, 12 yaralanmalı, 39 hasarlı, ölümlü kaza yok",
+      "Türetilmiş 6 Eylül toplamı: 28 can kaybı / 23 ölümlü kaza",
+      "Not: Dönem sonu, resmî haftalık polis raporunun kapsadığı son tarih olan 6 Eylül'dür; 7 Eylül sonrası için henüz resmî dönem toplamı yayımlanmamıştır"
+    ],
+    "sources": [
+      "https://radyoguven.gov.ct.tr/Sayfa/HaberDetay/14317",
+      "https://www.gundemkibris.com/yenierenkoydeki-kazada-yaralanan-surucu-hayatini-kaybetti-kesin-olum-nedeni-arastiriliyor",
+      "https://www.havadiskibris.com/trafik-kazasinda-rahatsizlanan-56-yasindaki-veli-celik-hayatini-kaybetti/",
+      "https://www.expresskibris.com/haftalik-trafik-raporu-51-kaza-27-yarali",
+      "https://haberkibris.com/haftalik-trafik-raporu...-iki-kisi-oldu-23-kisi-yaralandi-1529-2026-09-01.html"
+    ]
   }
 ]

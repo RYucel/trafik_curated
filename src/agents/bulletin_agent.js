@@ -113,19 +113,27 @@ export class BulletinAgent {
     const pendingConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_DEATH_COUNT'`)[0]?.cnt || 0;
     const pendingUnverified = queryDb(`SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'`)[0]?.cnt || 0;
     const pendingExtractionReviews = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'LLM_EXTRACTION_UNAVAILABLE'`)[0]?.cnt || 0;
+    const pendingInjuryConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_INJURY_COUNT'`)[0]?.cnt || 0;
 
+    // Only a death-count discrepancy contradicts the published fatality statistics, so only
+    // that blocks publication outright. Every other open item downgrades the bulletin to
+    // REVIEW_REQUIRED: it still publishes, but the caveat travels with it and the affected
+    // records stay labelled UNVERIFIED in the body.
     let safetyClass = 'PUBLIC_SAFE';
     let safetyReason = 'Tüm istatistikler ve vakalar doğrulanmıştır.';
 
     if (pendingConflicts > 0) {
       safetyClass = 'DO_NOT_PUBLISH';
-      safetyReason = `Kritik olgusal çelişki tespit edildi (${pendingConflicts} çözülmemiş ölüm/yaralanma sayısı uyuşmazlığı). Otomatik yayın ENGELLENDİ.`;
+      safetyReason = `Kritik olgusal çelişki tespit edildi (${pendingConflicts} çözülmemiş can kaybı sayısı uyuşmazlığı). Otomatik yayın ENGELLENDİ.`;
     } else if (pendingUnverified > 0) {
       safetyClass = 'REVIEW_REQUIRED';
-      safetyReason = `${pendingUnverified} vaka doğrulanmayı bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.`;
+      safetyReason = `${pendingUnverified} vaka tek kaynaklı olarak doğrulanmayı bekliyor; bültende UNVERIFIED olarak işaretlenmiştir.`;
+    } else if (pendingInjuryConflicts > 0) {
+      safetyClass = 'REVIEW_REQUIRED';
+      safetyReason = `${pendingInjuryConflicts} yaralı sayısı uyuşmazlığı inceleme bekliyor; resmî can kaybı istatistiklerini etkilememektedir.`;
     } else if (pendingExtractionReviews > 0) {
       safetyClass = 'REVIEW_REQUIRED';
-      safetyReason = `${pendingExtractionReviews} trafik adayı yapılandırılmış çıkarım bekliyor; kamuya açık yayın için inceleyen onayı gerekiyor.`;
+      safetyReason = `${pendingExtractionReviews} trafik adayı yapılandırılmış çıkarım bekliyor; bülten istatistikleri etkilenmemiştir.`;
     }
 
     // 2. Fetch target-date YTD stats and exact same-period comparisons.

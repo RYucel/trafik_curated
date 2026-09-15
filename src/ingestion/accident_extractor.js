@@ -166,9 +166,13 @@ Return strictly JSON:
         // MATCH FOUND: Attach source provenance to existing accident record (DO NOT create duplicate accident)
         console.log(`[AccidentExtractor] Matched existing accident ${matchedAccident.accident_id} (Match Score: ${highestScore})`);
 
-        // Check for Source Conflict (e.g. differing death/injury counts)
+        // Check for Source Conflict (e.g. differing death/injury counts).
+        // Death-count discrepancies contradict the published fatality statistics and must
+        // block publication; injury-only discrepancies are flagged for review but do not.
         if (matchedAccident.death_count !== deathCount || matchedAccident.injury_count !== injuryCount) {
-          console.warn(`[AccidentExtractor] CONFLICT DETECTED for ${matchedAccident.accident_id}!`);
+          const deathsConflict = matchedAccident.death_count !== deathCount;
+          const issueType = deathsConflict ? 'CONFLICTING_DEATH_COUNT' : 'CONFLICTING_INJURY_COUNT';
+          console.warn(`[AccidentExtractor] ${issueType} DETECTED for ${matchedAccident.accident_id}!`);
 
           executeDb(`
             UPDATE accidents SET verification_status = 'CONFLICT', publication_approval_status = 'DRAFT' WHERE accident_id = ?
@@ -177,10 +181,13 @@ Return strictly JSON:
           executeDb(`
             INSERT INTO review_queue (
               accident_id, issue_type, title, description, status, match_confidence, source_a, source_b, details_json
-            ) VALUES (?, 'CONFLICTING_DEATH_COUNT', ?, ?, 'PENDING', ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)
           `, [
             matchedAccident.accident_id,
-            `Can Kaybı / Yaralı Sayısı Çelişkisi (${article.source_name})`,
+            issueType,
+            deathsConflict
+              ? `Can Kaybı Sayısı Çelişkisi (${article.source_name})`
+              : `Yaralı Sayısı Çelişkisi (${article.source_name})`,
             `Mevcut kayıt: ${matchedAccident.death_count} ölü, ${matchedAccident.injury_count} yaralı (${matchedAccident.source_tier}). Yeni kaynak (${article.source_name} - ${sourceTier}): ${deathCount} ölü, ${injuryCount} yaralı.`,
             highestScore >= 0.9 ? 'HIGH' : 'MEDIUM',
             `${matchedAccident.source_name} (${matchedAccident.death_count} Ölü, ${matchedAccident.injury_count} Yaralı)`,

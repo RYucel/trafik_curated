@@ -224,8 +224,10 @@ async function executeDailyShadowPilot(targetDate = null) {
   // 8. Errors log
   fs.writeFileSync(path.join(snapshotDir, 'errors.json'), JSON.stringify(runErrors, null, 2));
 
-  // 9. Enforce SHADOW MODE: scheduled and unapproved runs must never contact Telegram.
-  console.log('[SHADOW PILOT] Telegram publication skipped (shadow mode).');
+  // 9. This ingestion run never contacts Telegram itself. Publication is a separate,
+  // reservation-guarded workflow step (prepare_approved_broadcast.js then
+  // run_approved_broadcast.js) so that a failed or partial ingest cannot broadcast.
+  console.log('[SHADOW PILOT] Telegram publication delegated to the downstream broadcast step.');
 
   // 10. Advance the seven-day pilot from persisted daily snapshots.
   const pilotRoot = path.join(process.cwd(), 'data', 'pilot');
@@ -269,7 +271,7 @@ async function executeDailyShadowPilot(targetDate = null) {
     latest_run_status: runErrors.length === 0 && collectResult.feeds_failed === 0 && extractionReviewRequiredCount === 0
       ? 'VERIFIED_RUN'
       : 'COMPLETED_WITH_ERRORS',
-    telegram_mode: 'SHADOW_MODE_GATED',
+    telegram_mode: 'DELEGATED_TO_BROADCAST_STEP',
     latest_new_canonical_accidents: newCanonicalCount,
     total_canonical_accidents_db: metrics.total_canonical_accidents,
     total_errors: runErrors.length,

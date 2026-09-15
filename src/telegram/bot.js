@@ -6,6 +6,12 @@ import { executeDb, queryDb } from '../lib/db.js';
 
 dotenv.config();
 
+// Safety classes an unattended (scheduled) run may publish without a human in the loop.
+// REVIEW_REQUIRED is included deliberately: it means single-source or injury-count items are
+// still open, and those already travel through the bulletin labelled UNVERIFIED. Only
+// DO_NOT_PUBLISH — a death-count contradiction against the official statistics — stops a run.
+const AUTO_PUBLISHABLE_SAFETY_CLASSES = ['PUBLIC_SAFE', 'REVIEW_REQUIRED'];
+
 function telegramPlainText(bulletin) {
   return bulletin.telegram.replace(/\*\*/g, '');
 }
@@ -172,7 +178,7 @@ export class TelegramBotService {
   async sendDailyBroadcast(isApprovedByHuman = false, targetDate = undefined, reservationId = undefined) {
     const bulletin = await BulletinAgent.generateDailyBulletin(targetDate);
 
-    if (isApprovedByHuman) {
+    if (isApprovedByHuman || reservationId) {
       const existing = queryDb(
         'SELECT published_telegram, notable_observation FROM bulletins WHERE bulletin_date = ? LIMIT 1',
         [bulletin.targetDate]
@@ -203,7 +209,7 @@ export class TelegramBotService {
       return { status: 'BLOCKED', reason: bulletin.safety_reason };
     }
 
-    if (!isApprovedByHuman && bulletin.safety_class !== 'PUBLIC_SAFE') {
+    if (!isApprovedByHuman && !AUTO_PUBLISHABLE_SAFETY_CLASSES.includes(bulletin.safety_class)) {
       console.warn(`[TelegramBot] BROADCAST REQUIRES HUMAN APPROVAL: ${bulletin.safety_reason}`);
       return { status: 'REQUIRES_APPROVAL', reason: bulletin.safety_reason };
     }
