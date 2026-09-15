@@ -52,50 +52,118 @@ function getPublicBulletinUrl(targetDate) {
   }
 }
 
-function getNicosiaDate(value) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Nicosia',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(parsed);
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+function shiftDate(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().substring(0, 10);
 }
 
-function getTargetDayTrafficNews(targetDate) {
-  const candidates = queryDb(`
-    SELECT DISTINCT news.title, news.url, news.source_name, news.published_at
-    FROM news_articles AS news
-    INNER JOIN (
-      SELECT source_url
-      FROM accidents
-      WHERE verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
+function formatDayLabel(dateStr) {
+  const [year, month, day] = dateStr.split('-');
+  return `${Number(day)} ${TURKISH_MONTHS[Number(month) - 1]} ${year}`;
+}
 
-      UNION
+// The extractor writes cause_category as free-form LLM output, so the same cause arrives
+// spelled several ways ("ALCOHOL", "Drunk Driving / Loss of Control", "careless_driving").
+// Matching is done on keywords, most specific first, so a compound label lands on its
+// primary cause rather than whichever branch happens to be checked first.
+const CAUSE_RULES = [
+  [/ALCOHOL|DRUNK|SUBSTANCE|IMPAIRED|DRUG/, 'Alkol/madde etkisi'],
+  [/SPEED/, 'Aşırı hız'],
+  [/DISTRACT|CARELESS|INATTENT/, 'Dikkatsiz sürüş'],
+  [/LOSS_OF_CONTROL/, 'Direksiyon hakimiyetini kaybetme'],
+  [/GIVE_WAY|RIGHT_OF_WAY|PRIORITY/, 'Geçiş önceliği ihlali'],
+  [/WRONG_SIDE|WRONG_WAY/, 'Ters şeride girme'],
+  [/PEDESTRIAN|MICRO_MOBILITY/, 'Yaya/mikro-mobilite'],
+  [/MOTORCYCLE|MOPED/, 'Motosiklet kaynaklı'],
+  [/HEALTH|MEDICAL/, 'Sağlık sorunu'],
+  [/CLOSE_FOLLOW|TAILGAT/, 'Yakın takip']
+];
 
-      SELECT sources.source_url
-      FROM accident_sources AS sources
-      INNER JOIN accidents AS accidents ON accidents.accident_id = sources.accident_id
-      WHERE accidents.verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
-        AND sources.verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED')
-    ) AS verified_sources ON verified_sources.source_url = news.url
-    WHERE news.traffic_relevance = 1
-      AND news.processing_status = 'EXTRACTED'
-  `);
+function normalizeCause(rawCause) {
+  if (!rawCause) return null;
+  const key = rawCause.toUpperCase().replace(/[^A-Z]+/g, '_');
+  if (/^_?(UNKNOWN|OTHER|NONE)_?$/.test(key)) return null;
+  for (const [pattern, label] of CAUSE_RULES) {
+    if (pattern.test(key)) return label;
+  }
+  return null;
+}
 
-  const seenUrls = new Set();
-  return candidates
-    .filter(article => getNicosiaDate(article.published_at) === targetDate)
-    .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
-    .filter(article => {
-      if (!article.url || seenUrls.has(article.url)) return false;
-      seenUrls.add(article.url);
-      return true;
-    })
-    .slice(0, 5);
+const VERIFICATION_BADGES = {
+  VERIFIED: '🟢',
+  MEDIA_CORROBORATED: '🟢',
+  UNVERIFIED: '🟡',
+  REPORTED: '🟡',
+  CONFLICT: '🟠'
+};
+
+// Accidents that happened on the report day, regardless of when the news reporting them was
+// published. Single-source records are included and badged, because excluding them left the
+// section empty on almost every day.
+function getDayAccidents(reportDay) {
+  return queryDb(`
+    SELECT accident_id, event_time, district, location_normalized, road_normalized,
+           death_count, injury_count, cause_category, verification_status,
+           source_name, source_url
+    FROM accidents
+    WHERE event_date = ? AND record_type = 'INDIVIDUAL_ACCIDENT'
+    ORDER BY death_count DESC, injury_count DESC, event_time
+  `, [reportDay]);
+}
+
+function getWeekSummary(reportDay) {
+  const windowStart = shiftDate(reportDay, -6);
+  const totals = queryDb(`
+    SELECT COUNT(*) AS accidents,
+           COALESCE(SUM(death_count), 0) AS deaths,
+           COALESCE(SUM(injury_count), 0) AS injuries
+    FROM accidents
+    WHERE event_date BETWEEN ? AND ? AND record_type = 'INDIVIDUAL_ACCIDENT'
+  `, [windowStart, reportDay])[0] || { accidents: 0, deaths: 0, injuries: 0 };
+
+  const districts = queryDb(`
+    SELECT district, COUNT(*) AS accidents
+    FROM accidents
+    WHERE event_date BETWEEN ? AND ? AND record_type = 'INDIVIDUAL_ACCIDENT'
+      AND district IS NOT NULL AND district != ''
+    GROUP BY district ORDER BY accidents DESC, district
+  `, [windowStart, reportDay]);
+
+  const causeRows = queryDb(`
+    SELECT cause_category
+    FROM accidents
+    WHERE event_date BETWEEN ? AND ? AND record_type = 'INDIVIDUAL_ACCIDENT'
+  `, [windowStart, reportDay]);
+
+  const causeCounts = new Map();
+  for (const row of causeRows) {
+    const label = normalizeCause(row.cause_category);
+    if (label) causeCounts.set(label, (causeCounts.get(label) || 0) + 1);
+  }
+  const causes = [...causeCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'tr'))
+    .slice(0, 3);
+
+  return { windowStart, reportDay, totals, districts, causes };
+}
+
+function describeAccident(accident) {
+  const place = [accident.district, accident.road_normalized || accident.location_normalized]
+    .filter(Boolean).join(', ');
+  const casualties = [];
+  if (accident.death_count > 0) casualties.push(`${accident.death_count} ölü`);
+  if (accident.injury_count > 0) casualties.push(`${accident.injury_count} yaralı`);
+  const cause = normalizeCause(accident.cause_category);
+  return {
+    badge: VERIFICATION_BADGES[accident.verification_status] || '🟡',
+    place: place || 'Konum belirtilmedi',
+    time: accident.event_time || null,
+    casualties: casualties.length > 0 ? casualties.join(', ') : 'Can kaybı/yaralı bildirilmedi',
+    cause,
+    sourceName: accident.source_name,
+    sourceUrl: accident.source_url
+  };
 }
 
 function getCuratedPeriodStats(targetDate, year) {
@@ -167,7 +235,11 @@ export class BulletinAgent {
     const yoyPct2024 = deaths2024 > 0 ? Number((((comparisonDeaths2026 - deaths2024) / deaths2024) * 100).toFixed(1)) : null;
     const formatChange = value => value === null ? 'karşılaştırılamıyor' : `${value >= 0 ? '+' : ''}${value}%`;
     const publicBulletinUrl = getPublicBulletinUrl(targetDate);
-    const targetDayTrafficNews = getTargetDayTrafficNews(targetDate);
+    // The bulletin goes out at 06:00 local, so the last fully reported day is the previous
+    // one. Reporting on the run's own date is what kept this section permanently empty.
+    const reportDay = shiftDate(targetDate, -1);
+    const dayAccidents = getDayAccidents(reportDay).map(describeAccident);
+    const week = getWeekSummary(reportDay);
 
     const unverifiedItems = queryDb(`
       SELECT accident_id, event_date, district, location_normalized, death_count, source_name
@@ -186,9 +258,25 @@ export class BulletinAgent {
 
 ---
 
-## 📰 Günlük Trafik Haberleri (Yerel Tarih)
+## 🚨 ${formatDayLabel(reportDay)} Kazaları
 
-${targetDayTrafficNews.length > 0 ? targetDayTrafficNews.map(article => `- [${article.title}](${article.url}) *(${article.source_name})*`).join('\n') : 'Bu raporlama günü için doğrulanmış trafik haberi bulunmamaktadır.'}
+${dayAccidents.length > 0 ? dayAccidents.map(a => [
+  `- ${a.badge} **${a.place}**${a.time ? ` (${a.time})` : ''}`,
+  `  - ${a.casualties}${a.cause ? ` — ${a.cause}` : ''}`,
+  `  - Kaynak: ${a.sourceUrl ? `[${a.sourceName}](${a.sourceUrl})` : a.sourceName}`
+].join('\n')).join('\n') : 'Bu gün için kayda geçmiş trafik kazası bulunmamaktadır.'}
+
+*🟢 birden fazla kaynakla doğrulanmış · 🟡 tek kaynak, teyit bekliyor · 🟠 kaynaklar çelişiyor*
+
+---
+
+## 📈 Son 7 Gün (${formatDayLabel(week.windowStart)} – ${formatDayLabel(week.reportDay)})
+
+- **Kaza**: ${week.totals.accidents} · **Can Kaybı**: ${week.totals.deaths} · **Yaralı**: ${week.totals.injuries}
+${week.districts.length > 0 ? `- **İlçelere göre**: ${week.districts.map(d => `${d.district} ${d.accidents}`).join(' · ')}` : '- **İlçelere göre**: kayıt yok'}
+${week.causes.length > 0 ? `- **Başlıca nedenler**: ${week.causes.map(([label, count]) => `${label} (${count})`).join(' · ')}` : '- **Başlıca nedenler**: bildirilmedi'}
+
+*Not: Bu sayılar platformun derlediği kayıtlara dayanır; resmî haftalık polis bilançosu değildir.*
 
 ---
 
@@ -216,13 +304,6 @@ ${stats2026.injuries === null ? '- **Yaralı Sayısı**: Bu dönem için doğrul
 
 ---
 
-## 🤖 Yapay Zekâ Çıkarımı ve Risk Analizi
-
-- Aşırı hız ve alkol kullanımı doğrulanmış vakalarda başlıca etkenler arasında rapor edilmiştir.
-- *Veri Notu: Raporlanan kaza nedenleri tek başına yıllık can kaybı artışının kesin nedeni olduğunu kanıtlamamaktadır (Gözlemlenen Veri vs Çıkarım ayrımı).*
-
----
-
 ## 🔎 Kaynaklar ve Köken Bilgisi
 
 1. **TIER 1 (Official)**: KKTC PGM Polis Basın Subaylığı İstatistikleri
@@ -247,9 +328,19 @@ Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve
 ☠️ **${deaths2026} Can Kaybı** (${stats2026.fatal_accidents || 0} Ölümlü Kaza)
 📅 ${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel} karşılaştırması: ${period.year} ${comparisonDeaths2026}, ${period.year - 1} ${deaths2025} (${formatChange(yoyPct2025)}), ${period.year - 2} ${deaths2024} (${formatChange(yoyPct2024)})
 
-📰 Günlük Trafik Haberleri (Yerel Tarih)
-${targetDayTrafficNews.length > 0 ? targetDayTrafficNews.map(article => `• ${article.title}\n${article.url}`).join('\n') : 'Doğrulanmış trafik haberi bulunmamaktadır.'}
+🚨 **${formatDayLabel(reportDay)} KAZALARI (${dayAccidents.length})**
+${dayAccidents.length > 0 ? dayAccidents.map(a => [
+  `${a.badge} ${a.place}${a.time ? ` (${a.time})` : ''}`,
+  `   ${a.casualties}${a.cause ? ` — ${a.cause}` : ''}`,
+  a.sourceUrl ? `   ${a.sourceUrl}` : `   Kaynak: ${a.sourceName}`
+].join('\n')).join('\n') : 'Kayda geçmiş trafik kazası bulunmamaktadır.'}
 
+📈 **SON 7 GÜN**
+${week.totals.accidents} kaza · ${week.totals.deaths} can kaybı · ${week.totals.injuries} yaralı
+${week.districts.length > 0 ? week.districts.map(d => `${d.district} ${d.accidents}`).join(' · ') : 'İlçe kaydı yok'}
+${week.causes.length > 0 ? `Başlıca neden: ${week.causes.map(([label, count]) => `${label} (${count})`).join(' · ')}` : ''}
+
+🟢 doğrulanmış · 🟡 tek kaynak · 🟠 çelişkili
 🔎 Kaynaklar: Resmî açıklamalar ve doğrulanmış medya kayıtları.
 🌐 Ayrıntılı bülten: ${publicBulletinUrl}
     `.trim();
