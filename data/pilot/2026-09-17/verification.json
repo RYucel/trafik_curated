@@ -1,0 +1,23 @@
+{
+  "verified_records": 74,
+  "media_corroborated": 16,
+  "unverified_records": 7,
+  "conflicts": 1,
+  "pending_review_items": [
+    {
+      "review_id": 25,
+      "accident_id": "ACC-20260911-7012",
+      "issue_type": "CONFLICTING_INJURY_COUNT",
+      "title": "Yaralı Sayısı Çelişkisi (Yenidüzen)",
+      "description": "Mevcut kayıt: 0 ölü, 1 yaralı (TIER_3_ESTABLISHED_MEDIA). Yeni kaynak (Yenidüzen - TIER_3_ESTABLISHED_MEDIA): 0 ölü, 0 yaralı.",
+      "status": "PENDING",
+      "match_confidence": "HIGH",
+      "source_a": "Haber Kıbrıs (0 Ölü, 1 Yaralı)",
+      "source_b": "Yenidüzen (0 Ölü, 0 Yaralı)",
+      "details_json": "{\"new_source_url\":\"https://www.yeniduzen.com/girne-ve-ercan-iskele-yolunda-iki-ayri-trafik-kazasi-199289h.htm\",\"extracted_data\":{\"record_type\":\"INDIVIDUAL_ACCIDENT\",\"event_date\":\"2026-09-11\",\"event_time\":\"23:10\",\"district\":\"Girne\",\"location_raw\":\"Girne’de Canbolat Sokak üzerinde\",\"location_normalized\":\"Canbolat Sokak, Girne\",\"road_raw\":\"Canbolat Sokak\",\"road_normalized\":\"Canbolat Sokak\",\"fatal\":false,\"death_count\":0,\"injury_count\":0,\"total_accidents_aggregate\":null,\"reported_cause\":\"120 miligram alkollü içki tesiri altında dikkatsizlik sonucu önündeki araca çarpma\",\"cause_category\":\"ALCOHOL\",\"vehicle_types\":[\"car\"],\"confidence\":0.95},\"source_tier\":\"TIER_3_ESTABLISHED_MEDIA\"}",
+      "created_at": "2026-09-13 08:01:47",
+      "resolved_at": null,
+      "resolved_by": null
+    }
+  ]
+}
