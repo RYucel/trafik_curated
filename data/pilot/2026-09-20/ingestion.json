@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-20",
+  "started_at": "2026-09-20T08:16:33.905Z",
+  "completed_at": "2026-09-20T08:19:23.024Z",
+  "execution_time_ms": 169119,
+  "feeds_checked": 3,
+  "feeds_failed": 0,
+  "articles_seen": 80,
+  "new_articles": 62,
+  "traffic_candidates": 164,
+  "relevant_articles": 0,
+  "extraction_candidates_this_run": 0,
+  "individual_accidents_extracted_this_run": 0,
+  "aggregate_reports_detected_this_run": 0,
+  "extraction_review_required_this_run": 0,
+  "duplicates_detected_this_run": 0,
+  "new_canonical_accidents_this_run": 0,
+  "total_canonical_accidents": 539,
+  "multi_source_matches": 49,
+  "conflicts": 1,
+  "unverified_records": 9,
+  "review_required": 1,
+  "llm_usage": {
+    "provider": "gemini",
+    "model": "gemini-3.7-flash",
+    "estimated_api_cost_usd": "UNKNOWN"
+  }
+}
