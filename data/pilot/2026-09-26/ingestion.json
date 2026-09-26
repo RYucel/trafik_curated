@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-26",
+  "started_at": "2026-09-26T08:18:15.044Z",
+  "completed_at": "2026-09-26T08:18:53.293Z",
+  "execution_time_ms": 38249,
+  "feeds_checked": 3,
+  "feeds_failed": 0,
+  "articles_seen": 80,
+  "new_articles": 80,
+  "traffic_candidates": 29,
+  "relevant_articles": 26,
+  "extraction_candidates_this_run": 26,
+  "individual_accidents_extracted_this_run": 0,
+  "aggregate_reports_detected_this_run": 0,
+  "extraction_review_required_this_run": 26,
+  "duplicates_detected_this_run": 0,
+  "new_canonical_accidents_this_run": 0,
+  "total_canonical_accidents": 541,
+  "multi_source_matches": 51,
+  "conflicts": 27,
+  "unverified_records": 11,
+  "review_required": 27,
+  "llm_usage": {
+    "provider": "heuristic_fallback",
+    "model": null,
+    "estimated_api_cost_usd": "0.00"
+  }
+}
