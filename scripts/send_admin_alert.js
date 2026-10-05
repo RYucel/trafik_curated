@@ -1,0 +1,139 @@
+// Operational health alert for the daily run.
+//
+// The 22-30 September outage was invisible for nine days: the run reported VERIFIED_RUN with
+// no errors and the bulletin went out stating there were no accidents. The run is now recorded
+// as degraded, but someone still has to read the bulletin to notice. This pushes the problem
+// out instead.
+//
+// Goes to TELEGRAM_ADMIN_CHAT_ID, never to the public channel — subscribers should not receive
+// provider errors. Without that secret the alert is skipped rather than redirected.
+//
+// Usage:
+//   node scripts/send_admin_alert.js [YYYY-MM-DD]        # health-check the day's snapshot
+//   node scripts/send_admin_alert.js --failure "reason"  # the workflow itself failed
+import fs from 'node:fs';
+import path from 'node:path';
+
+const token = process.env.TELEGRAM_BOT_TOKEN || '';
+const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
+const publicChatId = process.env.TELEGRAM_CHAT_ID || '';
+
+const targetDate = process.argv.find(arg => /^\d{4}-\d{2}-\d{2}$/.test(arg))
+  || process.env.PILOT_TARGET_DATE
+  || new Date().toISOString().substring(0, 10);
+
+const failureIndex = process.argv.indexOf('--failure');
+const workflowFailure = failureIndex !== -1
+  ? (process.argv[failureIndex + 1] || 'Workflow step failed')
+  : null;
+
+function runUrl() {
+  const server = process.env.GITHUB_SERVER_URL;
+  const repo = process.env.GITHUB_REPOSITORY;
+  const runId = process.env.GITHUB_RUN_ID;
+  return server && repo && runId ? `${server}/${repo}/actions/runs/${runId}` : null;
+}
+
+function buildReport() {
+  if (workflowFailure) {
+    return {
+      alert: true,
+      title: 'Günlük koşu BAŞARISIZ',
+      lines: [`Hata: ${workflowFailure}`, 'Bugün için anlık görüntü üretilmemiş olabilir.']
+    };
+  }
+
+  const snapshotDir = path.join(process.cwd(), 'data', 'pilot', targetDate);
+  const ingestionPath = path.join(snapshotDir, 'ingestion.json');
+
+  if (!fs.existsSync(ingestionPath)) {
+    return {
+      alert: true,
+      title: 'Günlük anlık görüntü ÜRETİLMEDİ',
+      lines: [`${targetDate} için ingestion.json bulunamadı.`, 'Toplama adımı çalışmamış olabilir.']
+    };
+  }
+
+  const metrics = JSON.parse(fs.readFileSync(ingestionPath, 'utf8'));
+  const llm = metrics.llm_usage || {};
+  const errorsPath = path.join(snapshotDir, 'errors.json');
+  let errors = [];
+  if (fs.existsSync(errorsPath)) {
+    try {
+      errors = JSON.parse(fs.readFileSync(errorsPath, 'utf8'));
+    } catch {
+      errors = [{ error: 'errors.json okunamadı' }];
+    }
+  }
+
+  // Two signals, because extraction_degraded only exists on snapshots written after this
+  // outage was fixed. A provider string of heuristic_fallback means the same thing and is
+  // what the September snapshots actually recorded.
+  const degraded = llm.extraction_degraded === true
+    || String(llm.provider || '').includes('heuristic_fallback');
+  const feedsFailed = metrics.feeds_failed || 0;
+  if (!degraded && feedsFailed === 0 && errors.length === 0) {
+    return { alert: false };
+  }
+
+  const lines = [];
+  if (degraded) {
+    lines.push('⛔ Yapılandırılmış çıkarım DEVRE DIŞI — bugün hiçbir kaza kaydı çıkarılamadı.');
+    if (llm.total_calls) lines.push(`Çağrı: ${llm.fallback_calls || 0}/${llm.total_calls} heuristiğe düştü`);
+    const deferred = metrics.extraction_review_required_this_run || 0;
+    if (deferred > 0) lines.push(`İşlenemeyen trafik haberi: ${deferred}`);
+    if (llm.last_provider_error) lines.push(`Sağlayıcı hatası: ${llm.last_provider_error}`);
+  }
+  if (feedsFailed > 0) lines.push(`Başarısız RSS kaynağı: ${feedsFailed}/${metrics.feeds_checked || 0}`);
+  if (errors.length > 0 && !degraded) lines.push(`Koşu hatası: ${errors.length}`);
+
+  lines.push(`Toplanan haber: ${metrics.articles_seen || 0} · yeni kaza: ${metrics.new_canonical_accidents_this_run || 0}`);
+
+  return {
+    alert: true,
+    title: degraded ? 'Çıkarım servisi kullanılamıyor' : 'Günlük koşu uyarı üretti',
+    lines
+  };
+}
+
+const report = buildReport();
+
+if (!report.alert) {
+  console.log(`[AdminAlert] ${targetDate}: sorun yok, uyarı gönderilmedi.`);
+  process.exit(0);
+}
+
+const url = runUrl();
+const message = [
+  `⚠️ KKTC TRAFİK — ${report.title}`,
+  `📅 ${targetDate}`,
+  '',
+  ...report.lines,
+  ...(url ? ['', `🔗 ${url}`] : [])
+].join('\n');
+
+if (!token || !adminChatId) {
+  // Deliberately not falling back to the public channel.
+  console.log('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID tanımlı değil; uyarı gönderilmedi. İçerik:');
+  console.log(message);
+  process.exit(0);
+}
+
+if (adminChatId === publicChatId) {
+  console.error('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID genel kanalla aynı; operasyonel uyarı gönderilmedi.');
+  process.exit(0);
+}
+
+const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ chat_id: adminChatId, text: message })
+});
+
+if (response.ok) {
+  console.log(`[AdminAlert] ${targetDate}: uyarı gönderildi.`);
+} else {
+  // Never fail the pipeline because alerting failed.
+  const detail = await response.text().catch(() => '');
+  console.error(`[AdminAlert] Gönderilemedi (HTTP ${response.status}): ${detail.slice(0, 200)}`);
+}

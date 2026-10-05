@@ -261,7 +261,8 @@ function testWorkflowPassesTargetDateToEveryDateSensitiveStep() {
   const workflow = fs.readFileSync('.github/workflows/shadow-pilot.yml', 'utf8');
   const bindings = workflow.match(/PILOT_TARGET_DATE: \$\{\{ inputs\.target_date \}\}/g) || [];
   const publicUrlBindings = workflow.match(/PUBLIC_BULLETIN_BASE_URL: \$\{\{ vars\.PUBLIC_BULLETIN_BASE_URL \}\}/g) || [];
-  assert.strictEqual(bindings.length, 4);
+  // pilot, validate, reserve, publish, and both admin-alert steps all report on a date.
+  assert.strictEqual(bindings.length, 6);
   assert.strictEqual(publicUrlBindings.length, 2);
   assert.match(workflow, /correction_republish:\s+[\s\S]*?type: boolean[\s\S]*?default: false/);
   assert.match(workflow, /ALLOW_CORRECTION_REPUBLISH: \$\{\{ inputs\.correction_republish \}\}/);

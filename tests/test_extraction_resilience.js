@@ -7,6 +7,8 @@
 // dates already in the past, so those crashes were never announced in any bulletin.
 import assert from 'node:assert';
 import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { BulletinAgent } from '../src/agents/bulletin_agent.js';
 import { LLMProvider, llmHealth, resetLlmHealth } from '../src/lib/llm_provider.js';
 import { executeDb, queryDb } from '../src/lib/db.js';
@@ -169,6 +171,79 @@ async function testQuotaExhaustionIsReadableAfterTheFact() {
   }
 }
 
+function runAlert(args, env = {}) {
+  return execFileSync(process.execPath, ['scripts/send_admin_alert.js', ...args], {
+    encoding: 'utf8',
+    env: { ...process.env, ...env }
+  });
+}
+
+function testAlertFiresOnADegradedSnapshot() {
+  const day = '2099-10-26';
+  const dir = path.join(process.cwd(), 'data', 'pilot', day);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    // Shaped like the real September snapshots, which predate extraction_degraded: the
+    // provider string is the only signal they carry.
+    fs.writeFileSync(path.join(dir, 'ingestion.json'), JSON.stringify({
+      date: day,
+      articles_seen: 80,
+      feeds_checked: 3,
+      feeds_failed: 0,
+      new_canonical_accidents_this_run: 0,
+      extraction_review_required_this_run: 26,
+      llm_usage: { provider: 'heuristic_fallback', model: null }
+    }));
+    fs.writeFileSync(path.join(dir, 'errors.json'), '[]');
+
+    const out = runAlert([day], { TELEGRAM_BOT_TOKEN: '', TELEGRAM_ADMIN_CHAT_ID: '' });
+    assert.match(out, /Çıkarım servisi kullanılamıyor/);
+    assert.match(out, /İşlenemeyen trafik haberi: 26/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function testAlertStaysQuietOnAHealthyRun() {
+  const day = '2099-10-27';
+  const dir = path.join(process.cwd(), 'data', 'pilot', day);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'ingestion.json'), JSON.stringify({
+      date: day,
+      articles_seen: 80,
+      feeds_checked: 3,
+      feeds_failed: 0,
+      new_canonical_accidents_this_run: 2,
+      extraction_review_required_this_run: 0,
+      llm_usage: { provider: 'gemini', model: 'gemini-3.7-flash', extraction_degraded: false }
+    }));
+    fs.writeFileSync(path.join(dir, 'errors.json'), '[]');
+
+    const out = runAlert([day], { TELEGRAM_BOT_TOKEN: '', TELEGRAM_ADMIN_CHAT_ID: '' });
+    assert.match(out, /sorun yok/);
+    assert.ok(!out.includes('⚠️'), 'a healthy run must not produce an alert');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function testAlertNeverTargetsThePublicChannel() {
+  const alert = fs.readFileSync('scripts/send_admin_alert.js', 'utf8');
+
+  // Subscribers of the public bulletin must never receive provider errors, so a missing admin
+  // chat id skips the alert instead of falling back to TELEGRAM_CHAT_ID.
+  assert.match(alert, /if \(adminChatId === publicChatId\)/);
+  assert.doesNotMatch(alert, /chat_id: publicChatId/);
+  assert.match(alert, /chat_id: adminChatId/);
+
+  const workflow = fs.readFileSync('.github/workflows/shadow-pilot.yml', 'utf8');
+  // Must run even when the pilot step crashed, and must never fail the job itself.
+  assert.match(workflow, /- name: Alert admin on a degraded run\s+if: \$\{\{ always\(\) \}\}\s+continue-on-error: true/);
+  assert.match(workflow, /- name: Alert admin if the workflow itself failed\s+if: \$\{\{ failure\(\) \}\}/);
+  assert.match(workflow, /TELEGRAM_ADMIN_CHAT_ID: \$\{\{ secrets\.TELEGRAM_ADMIN_CHAT_ID \}\}/);
+}
+
 await testFallbackIsRecordedAsAFailure();
 console.log('✓ A heuristic fallback is recorded as a provider failure');
 await testQuotaExhaustionIsReadableAfterTheFact();
@@ -183,3 +258,9 @@ testFatalFollowUpCoverageDoesNotCreateASecondRecord();
 console.log('✓ Follow-up coverage of a fatal crash does not create a second record');
 testNoDuplicateFatalRecordsRemainInTheDatabase();
 console.log('✓ No duplicate fatal records remain in the database');
+testAlertFiresOnADegradedSnapshot();
+console.log('✓ A degraded run raises an admin alert');
+testAlertStaysQuietOnAHealthyRun();
+console.log('✓ A healthy run raises nothing');
+testAlertNeverTargetsThePublicChannel();
+console.log('✓ Operational alerts never reach the public channel');

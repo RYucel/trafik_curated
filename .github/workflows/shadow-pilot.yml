@@ -80,6 +80,18 @@ jobs:
           fi
           echo "✓ Daily snapshot artifacts validated successfully."
 
+      - name: Alert admin on a degraded run
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          TARGET_DATE="${PILOT_TARGET_DATE:-$(date +'%Y-%m-%d')}"
+          node scripts/send_admin_alert.js "$TARGET_DATE"
+
       - name: Reserve daily Telegram bulletin
         id: reserve_broadcast
         if: ${{ (github.event_name == 'schedule' && vars.TELEGRAM_AUTO_PUBLISH != 'false')
@@ -122,6 +134,17 @@ jobs:
         with:
           commit_message: "chore(live): record approved Telegram publication [skip ci]"
           file_pattern: "db/kktc_traffic.db"
+
+      - name: Alert admin if the workflow itself failed
+        if: ${{ failure() }}
+        continue-on-error: true
+        env:
+          PILOT_TARGET_DATE: ${{ inputs.target_date }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node scripts/send_admin_alert.js --failure "Gunluk is basarisiz oldu (bir veya daha fazla adim hata verdi)."
 
       - name: Upload Daily Snapshot Artifacts
         uses: actions/upload-artifact@v4
