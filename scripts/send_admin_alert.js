@@ -21,6 +21,8 @@ import path from 'node:path';
 const token = process.env.TELEGRAM_BOT_TOKEN || '';
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 const publicChatId = process.env.TELEGRAM_CHAT_ID || '';
+// Overridable so the delivery path itself can be exercised against a stub.
+const apiBase = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org';
 
 const targetDate = process.argv.find(arg => /^\d{4}-\d{2}-\d{2}$/.test(arg))
   || process.env.PILOT_TARGET_DATE
@@ -141,13 +143,60 @@ if (!token || !adminChatId) {
   process.exit(testMode ? 1 : 0);
 }
 
-if (adminChatId === publicChatId) {
-  console.error('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID genel kanalla aynı; operasyonel uyarı gönderilmedi.');
-  // A test that reports success while nothing was delivered is the failure it exists to catch.
-  process.exit(testMode ? 1 : 0);
+// A chat id does not say whether it is a person, a group or a channel, and the sign of the
+// number is a convention, not an answer. Ask Telegram instead of guessing.
+async function getChat(id) {
+  if (!id) return null;
+  try {
+    const res = await fetch(
+      `${apiBase}/bot${token}/getChat?chat_id=${encodeURIComponent(id)}`
+    );
+    const body = await res.json().catch(() => ({}));
+    return body.ok ? body.result : null;
+  } catch {
+    return null;
+  }
 }
 
-const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+function describeChat(chat) {
+  if (!chat) return 'sorgulanamadı';
+  const name = chat.title
+    || (chat.username ? '@' + chat.username : null)
+    || [chat.first_name, chat.last_name].filter(Boolean).join(' ')
+    || '(isimsiz)';
+  const typeLabel = {
+    private: 'ÖZEL SOHBET (tek kişi)',
+    group: 'GRUP',
+    supergroup: 'SÜPER GRUP',
+    channel: 'KANAL'
+  }[chat.type] || chat.type;
+  return `${typeLabel} — "${name}"`;
+}
+
+if (testMode) {
+  console.log('[AdminAlert] Hedef sohbetlerin gerçek türü:');
+  console.log(`  TELEGRAM_CHAT_ID       (bülten): ${describeChat(await getChat(publicChatId))}`);
+  console.log(`  TELEGRAM_ADMIN_CHAT_ID (uyarı) : ${describeChat(await getChat(adminChatId))}`);
+}
+
+if (adminChatId === publicChatId) {
+  // The rule being protected is "subscribers must not receive provider errors". A private
+  // chat has no subscribers — it is the operator talking to their own bot — so the alert is
+  // allowed through with a warning. Once the bulletin moves to a real channel or group this
+  // starts refusing again on its own, with no flag anyone has to remember to unset.
+  const shared = await getChat(adminChatId);
+  if (shared && shared.type === 'private') {
+    console.warn('[AdminAlert] Uyarı bültenle aynı özel sohbete gidiyor. '
+      + 'Burada abone olmadığı için izin verildi; bülten bir kanala taşındığında bu engellenecek.');
+  } else {
+    console.error(`[AdminAlert] TELEGRAM_ADMIN_CHAT_ID bültenin gittiği yerle aynı (${describeChat(shared)}); `
+      + 'aboneler operasyonel hata görmemeli, uyarı gönderilmedi.');
+    // A test that reports success while nothing was delivered is the failure it exists to catch.
+    process.exit(testMode ? 1 : 0);
+  }
+}
+
+const response = await fetch(`${apiBase}/bot${token}/sendMessage`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ chat_id: adminChatId, text: message })

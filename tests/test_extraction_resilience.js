@@ -8,7 +8,11 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import http from 'node:http';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 import { BulletinAgent } from '../src/agents/bulletin_agent.js';
 import { LLMProvider, llmHealth, resetLlmHealth } from '../src/lib/llm_provider.js';
 import { executeDb, queryDb } from '../src/lib/db.js';
@@ -178,6 +182,79 @@ function runAlert(args, env = {}) {
   });
 }
 
+// Runs the alert against a stub Telegram API so the delivery decision itself is exercised,
+// not just the shape of the source file.
+async function runAlertAgainstStub({ chatType, sameChat }) {
+  const sent = [];
+  const server = http.createServer((req, res) => {
+    if (req.url.includes('/getChat')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        ok: true,
+        result: {
+          id: 1,
+          type: chatType,
+          title: chatType === 'channel' ? 'KKTC Trafik Bülteni' : undefined,
+          first_name: 'Operator'
+        }
+      }));
+      return;
+    }
+    if (req.url.includes('/sendMessage')) {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        sent.push(JSON.parse(body));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, result: { message_id: 1 } }));
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end('{}');
+  });
+
+  await new Promise(resolve => server.listen(0, resolve));
+  const { port } = server.address();
+  let exitCode = 0;
+  try {
+    await execFileAsync(process.execPath, ['scripts/send_admin_alert.js', '--test'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        TELEGRAM_API_BASE: `http://127.0.0.1:${port}`,
+        TELEGRAM_BOT_TOKEN: 'stub-token',
+        TELEGRAM_ADMIN_CHAT_ID: '6563673916',
+        TELEGRAM_CHAT_ID: sameChat ? '6563673916' : '-1001112223334'
+      }
+    });
+  } catch (err) {
+    exitCode = err.code;
+  } finally {
+    server.close();
+  }
+  return { exitCode, sent };
+}
+
+async function testAlertDeliveryDependsOnWhoIsListening() {
+  // The rule is "subscribers must not receive provider errors". A private chat has no
+  // subscribers — it is the operator's own chat with the bot — so sharing it is allowed.
+  const privateShared = await runAlertAgainstStub({ chatType: 'private', sameChat: true });
+  assert.strictEqual(privateShared.exitCode, 0);
+  assert.strictEqual(privateShared.sent.length, 1, 'a private chat has no audience to protect');
+
+  // A channel does have subscribers, so the same collision must refuse — and the test must
+  // go red rather than report a success that delivered nothing.
+  const channelShared = await runAlertAgainstStub({ chatType: 'channel', sameChat: true });
+  assert.strictEqual(channelShared.exitCode, 1);
+  assert.strictEqual(channelShared.sent.length, 0, 'subscribers must not receive provider errors');
+
+  // Separate destinations always work.
+  const separate = await runAlertAgainstStub({ chatType: 'channel', sameChat: false });
+  assert.strictEqual(separate.exitCode, 0);
+  assert.strictEqual(separate.sent.length, 1);
+}
+
 function testAlertFiresOnADegradedSnapshot() {
   const day = '2099-10-26';
   const dir = path.join(process.cwd(), 'data', 'pilot', day);
@@ -234,6 +311,7 @@ function testAlertNeverTargetsThePublicChannel() {
   // Subscribers of the public bulletin must never receive provider errors, so a missing admin
   // chat id skips the alert instead of falling back to TELEGRAM_CHAT_ID.
   assert.match(alert, /if \(adminChatId === publicChatId\)/);
+  assert.match(alert, /shared\.type === 'private'/);
   assert.doesNotMatch(alert, /chat_id: publicChatId/);
   assert.match(alert, /chat_id: adminChatId/);
 
@@ -364,6 +442,8 @@ testAlertStaysQuietOnAHealthyRun();
 console.log('✓ A healthy run raises nothing');
 testAlertNeverTargetsThePublicChannel();
 console.log('✓ Operational alerts never reach the public channel');
+await testAlertDeliveryDependsOnWhoIsListening();
+console.log('✓ Sharing a chat is refused for a channel and allowed for a private chat');
 await testSecondaryProviderTakesOverWhenThePrimaryIsExhausted();
 console.log('✓ The secondary provider takes over when the primary quota is exhausted');
 await testEmptyCompletionIsTreatedAsAFailure();
