@@ -205,7 +205,7 @@ async function executeDailyShadowPilot(targetDate = null) {
       provider: llmProviderStates.length > 0 ? llmProviderStates.join(',') : 'not_used',
       model: llmProviderStates.includes('gemini')
         ? classifier.llm.geminiModel
-        : (llmProviderStates.includes('cerebras') ? 'llama3.1-8b' : null),
+        : (llmProviderStates.includes('cerebras') ? classifier.llm.cerebrasModel : null),
       estimated_api_cost_usd: usedExternalLlm ? 'UNKNOWN' : '0.00',
       total_calls: llmHealth.calls,
       fallback_calls: llmHealth.fallbackCalls,

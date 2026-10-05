@@ -244,6 +244,106 @@ function testAlertNeverTargetsThePublicChannel() {
   assert.match(workflow, /TELEGRAM_ADMIN_CHAT_ID: \$\{\{ secrets\.TELEGRAM_ADMIN_CHAT_ID \}\}/);
 }
 
+async function testSecondaryProviderTakesOverWhenThePrimaryIsExhausted() {
+  const savedFetch = globalThis.fetch;
+  const savedGemini = process.env.GEMINI_API_KEY;
+  const savedCerebras = process.env.CEREBRAS_API_KEY;
+  try {
+    process.env.GEMINI_API_KEY = 'primary-key';
+    process.env.CEREBRAS_API_KEY = 'secondary-key';
+    resetLlmHealth();
+
+    const calledHosts = [];
+    globalThis.fetch = async (url, init) => {
+      calledHosts.push(String(url));
+      if (String(url).includes('generativelanguage.googleapis.com')) {
+        return {
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          text: async () => JSON.stringify({
+            error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota exceeded' }
+          })
+        };
+      }
+      // Cerebras: the model must be the configured one, not the removed llama3.1-8b.
+      const body = JSON.parse(init.body);
+      assert.notStrictEqual(body.model, 'llama3.1-8b');
+      assert.ok(body.max_tokens >= 2000, 'reasoning models need headroom beyond the caller budget');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{
+            finish_reason: 'stop',
+            message: { reasoning: 'thinking', content: '{"is_traffic_accident": true}' }
+          }]
+        })
+      };
+    };
+
+    const provider = new LLMProvider();
+    const out = await provider.generateText('classify this', { maxTokens: 1000 });
+
+    // The whole point: an exhausted primary must not reach the heuristic path.
+    assert.strictEqual(provider.lastProvider, 'cerebras');
+    assert.strictEqual(llmHealth.fallbackCalls, 0, 'the secondary provider must prevent the fallback');
+    assert.match(llmHealth.lastError, /RESOURCE_EXHAUSTED/);
+    assert.ok(out.includes('is_traffic_accident'));
+    assert.ok(calledHosts.some(h => h.includes('api.cerebras.ai')));
+  } finally {
+    globalThis.fetch = savedFetch;
+    resetLlmHealth();
+    if (savedGemini === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = savedGemini;
+    if (savedCerebras === undefined) delete process.env.CEREBRAS_API_KEY;
+    else process.env.CEREBRAS_API_KEY = savedCerebras;
+  }
+}
+
+async function testEmptyCompletionIsTreatedAsAFailure() {
+  const savedFetch = globalThis.fetch;
+  const savedCerebras = process.env.CEREBRAS_API_KEY;
+  try {
+    delete process.env.GEMINI_API_KEY;
+    process.env.CEREBRAS_API_KEY = 'secondary-key';
+    resetLlmHealth();
+
+    // A reasoning model that burned its budget before answering returns content: ''. Passing
+    // that on surfaces downstream as an unparseable-JSON error with no clue about the cause.
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ finish_reason: 'length', message: { reasoning: 'thinking...', content: '' } }]
+      })
+    });
+
+    const provider = new LLMProvider();
+    await provider.generateText('extract structured record_type');
+
+    assert.strictEqual(provider.lastProvider, 'heuristic_fallback');
+    assert.match(llmHealth.lastError, /returned no content/);
+    assert.match(llmHealth.lastError, /finish_reason: length/);
+  } finally {
+    globalThis.fetch = savedFetch;
+    resetLlmHealth();
+    if (savedCerebras === undefined) delete process.env.CEREBRAS_API_KEY;
+    else process.env.CEREBRAS_API_KEY = savedCerebras;
+  }
+}
+
+function testCerebrasModelDefaultExists() {
+  const provider = new LLMProvider();
+  // Verified against the live API: llama3.1-8b returns 404 model_not_found, so the secondary
+  // provider could never have taken over regardless of whether a key was configured.
+  assert.notStrictEqual(provider.cerebrasModel, 'llama3.1-8b');
+  assert.strictEqual(provider.cerebrasModel, 'gpt-oss-120b');
+
+  const pilot = fs.readFileSync('scripts/run_shadow_pilot.js', 'utf8');
+  assert.doesNotMatch(pilot, /'llama3\.1-8b'/, 'the snapshot must report the model actually used');
+}
+
 await testFallbackIsRecordedAsAFailure();
 console.log('✓ A heuristic fallback is recorded as a provider failure');
 await testQuotaExhaustionIsReadableAfterTheFact();
@@ -264,3 +364,9 @@ testAlertStaysQuietOnAHealthyRun();
 console.log('✓ A healthy run raises nothing');
 testAlertNeverTargetsThePublicChannel();
 console.log('✓ Operational alerts never reach the public channel');
+await testSecondaryProviderTakesOverWhenThePrimaryIsExhausted();
+console.log('✓ The secondary provider takes over when the primary quota is exhausted');
+await testEmptyCompletionIsTreatedAsAFailure();
+console.log('✓ An empty completion is reported as a failure, not an answer');
+testCerebrasModelDefaultExists();
+console.log('✓ The configured Cerebras model is one that exists');

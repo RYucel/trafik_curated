@@ -35,6 +35,10 @@ export class LLMProvider {
     this.cerebrasKey = process.env.CEREBRAS_API_KEY || '';
     this.preferredProvider = process.env.LLM_PROVIDER || 'gemini'; // 'gemini', 'cerebras', or 'auto'
     this.geminiModel = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+    // llama3.1-8b was hardcoded here and returns 404 model_not_found — the secondary provider
+    // could never have taken over, whatever the key. gpt-oss-120b is verified against this
+    // pipeline's extraction prompt; qwen-3.8-27b also works but needs a larger token budget.
+    this.cerebrasModel = process.env.CEREBRAS_MODEL || 'gpt-oss-120b';
     this.lastProvider = 'not_used';
   }
 
@@ -132,13 +136,16 @@ export class LLMProvider {
   async callCerebras(prompt, systemPrompt, temperature, maxTokens) {
     const url = 'https://api.cerebras.ai/v1/chat/completions';
     const payload = {
-      model: 'llama3.1-8b',
+      model: this.cerebrasModel,
       messages: [
         { role: 'system', content: systemPrompt || 'You are a KKTC Traffic Intelligence data assistant.' },
         { role: 'user', content: prompt }
       ],
       temperature,
-      max_tokens: maxTokens
+      // These are reasoning models: they emit a separate `reasoning` field and only then the
+      // content. At 1000 tokens qwen truncates mid-JSON and returns nothing parseable, so the
+      // budget gets headroom the caller does not have to know about.
+      max_tokens: Math.max(maxTokens, 2000)
     };
 
     const response = await fetch(url, {
@@ -159,7 +166,16 @@ export class LLMProvider {
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content || '';
+    if (!content) {
+      // Truncated or reasoning-only: returning '' would surface downstream as an unparseable
+      // JSON error with no clue why. Fail here so the fallback chain records a real reason.
+      throw new Error(
+        `Cerebras returned no content (model: ${this.cerebrasModel}, finish_reason: ${choice?.finish_reason || 'unknown'})`
+      );
+    }
+    return content;
   }
 
   heuristicFallback(prompt) {
