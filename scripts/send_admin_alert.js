@@ -129,8 +129,14 @@ const message = [
 ].join('\n');
 
 if (!token || !adminChatId) {
+  // Name the variable that is actually missing. Blaming the wrong one sends someone looking
+  // in the wrong place, which is the habit this whole alerting change exists to break.
+  const missing = [
+    !token ? 'TELEGRAM_BOT_TOKEN' : null,
+    !adminChatId ? 'TELEGRAM_ADMIN_CHAT_ID' : null
+  ].filter(Boolean);
   // Deliberately not falling back to the public channel.
-  console.log('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID tanımlı değil; uyarı gönderilmedi. İçerik:');
+  console.log(`[AdminAlert] Eksik secret: ${missing.join(', ')} — uyarı gönderilmedi. İçerik:`);
   console.log(message);
   process.exit(testMode ? 1 : 0);
 }
