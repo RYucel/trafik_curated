@@ -143,7 +143,8 @@ if (!token || !adminChatId) {
 
 if (adminChatId === publicChatId) {
   console.error('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID genel kanalla aynı; operasyonel uyarı gönderilmedi.');
-  process.exit(0);
+  // A test that reports success while nothing was delivered is the failure it exists to catch.
+  process.exit(testMode ? 1 : 0);
 }
 
 const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
