@@ -11,6 +11,10 @@
 // Usage:
 //   node scripts/send_admin_alert.js [YYYY-MM-DD]        # health-check the day's snapshot
 //   node scripts/send_admin_alert.js --failure "reason"  # the workflow itself failed
+//   node scripts/send_admin_alert.js --test             # prove delivery works
+//
+// --test exists because a real alert only fires when something is broken: without it the
+// first proof that TELEGRAM_ADMIN_CHAT_ID is correct would be a morning it was needed.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -22,6 +26,7 @@ const targetDate = process.argv.find(arg => /^\d{4}-\d{2}-\d{2}$/.test(arg))
   || process.env.PILOT_TARGET_DATE
   || new Date().toISOString().substring(0, 10);
 
+const testMode = process.argv.includes('--test');
 const failureIndex = process.argv.indexOf('--failure');
 const workflowFailure = failureIndex !== -1
   ? (process.argv[failureIndex + 1] || 'Workflow step failed')
@@ -35,6 +40,17 @@ function runUrl() {
 }
 
 function buildReport() {
+  if (testMode) {
+    return {
+      alert: true,
+      title: 'Yönetici uyarı kanalı testi',
+      lines: [
+        'Bu bir testtir — sistemde bir sorun yok.',
+        'Bu mesajı gördüysen bozulma uyarıları sana ulaşıyor demektir.'
+      ]
+    };
+  }
+
   if (workflowFailure) {
     return {
       alert: true,
@@ -116,7 +132,7 @@ if (!token || !adminChatId) {
   // Deliberately not falling back to the public channel.
   console.log('[AdminAlert] TELEGRAM_ADMIN_CHAT_ID tanımlı değil; uyarı gönderilmedi. İçerik:');
   console.log(message);
-  process.exit(0);
+  process.exit(testMode ? 1 : 0);
 }
 
 if (adminChatId === publicChatId) {
@@ -133,7 +149,12 @@ const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`,
 if (response.ok) {
   console.log(`[AdminAlert] ${targetDate}: uyarı gönderildi.`);
 } else {
-  // Never fail the pipeline because alerting failed.
   const detail = await response.text().catch(() => '');
   console.error(`[AdminAlert] Gönderilemedi (HTTP ${response.status}): ${detail.slice(0, 200)}`);
+  if (response.status === 403) {
+    console.error('[AdminAlert] 403 genellikle botun sana henüz yazamadığı anlamına gelir: '
+      + 'Telegram\'da bota /start gönder, sonra tekrar dene.');
+  }
+  // A real alert must never fail the pipeline; a deliberate test must report the failure.
+  if (testMode) process.exit(1);
 }

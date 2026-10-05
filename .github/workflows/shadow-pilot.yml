@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: false
+      test_admin_alert:
+        description: 'Send a test message to the admin alert channel to confirm it is wired up'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -52,6 +57,14 @@ jobs:
 
       - name: Install NPM Dependencies
         run: npm ci || npm install
+
+      - name: Test the admin alert channel (manual dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_admin_alert == true }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/send_admin_alert.js --test
 
       - name: Execute Daily Shadow Production Pilot
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.correction_republish == true) }}
