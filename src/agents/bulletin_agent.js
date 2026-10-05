@@ -148,6 +148,35 @@ function getWeekSummary(reportDay) {
   return { windowStart, reportDay, totals, districts, causes };
 }
 
+// Candidates deferred because no model was reachable. While these exist for the reporting
+// window, an empty accident list means "not extracted yet", not "nothing happened", and the
+// bulletin must say so rather than publishing a confident zero.
+function getExtractionHealth(targetDate) {
+  const deferred = queryDb(`
+    SELECT COUNT(*) AS cnt FROM review_queue
+    WHERE status = 'PENDING' AND issue_type = 'LLM_EXTRACTION_UNAVAILABLE'
+      AND date(created_at) >= date(?, '-2 day')
+  `, [targetDate])[0]?.cnt || 0;
+  return { deferred, degraded: deferred > 0 };
+}
+
+// Accidents this run added that happened before the reporting day — the backlog an outage
+// leaves behind. Keyed on event_date, they would otherwise never appear in any bulletin,
+// which is how nine days of recovered crashes went unannounced.
+function getLateAddedAccidents(targetDate, reportDay) {
+  return queryDb(`
+    SELECT accident_id, event_date, event_time, district, location_normalized, road_normalized,
+           death_count, injury_count, cause_category, verification_status,
+           source_name, source_url
+    FROM accidents
+    WHERE record_type = 'INDIVIDUAL_ACCIDENT'
+      AND event_date < ?
+      AND date(created_at) = date(?)
+    ORDER BY event_date DESC
+    LIMIT 10
+  `, [reportDay, targetDate]);
+}
+
 function describeAccident(accident) {
   const place = [accident.district, accident.road_normalized || accident.location_normalized]
     .filter(Boolean).join(', ');
@@ -177,6 +206,7 @@ export class BulletinAgent {
     const period = getPeriod(targetDate);
     const curatedStats = getCuratedPeriodStats(targetDate, period.year);
     const statisticsPeriod = curatedStats ? getPeriod(curatedStats.period_end) : period;
+    const extraction = getExtractionHealth(targetDate);
     // 1. Check for Pending Conflict Items in Review Queue
     const pendingConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_DEATH_COUNT'`)[0]?.cnt || 0;
     const pendingUnverified = queryDb(`SELECT COUNT(*) as cnt FROM accidents WHERE verification_status = 'UNVERIFIED'`)[0]?.cnt || 0;
@@ -193,6 +223,10 @@ export class BulletinAgent {
     if (pendingConflicts > 0) {
       safetyClass = 'DO_NOT_PUBLISH';
       safetyReason = `Kritik olgusal çelişki tespit edildi (${pendingConflicts} çözülmemiş can kaybı sayısı uyuşmazlığı). Otomatik yayın ENGELLENDİ.`;
+    } else if (extraction.degraded) {
+      safetyClass = 'REVIEW_REQUIRED';
+      safetyReason = `Yapilandirilmis cikarim servisi kullanilamadi; ${extraction.deferred} trafik haberi islenmeyi bekliyor. `
+        + 'Bu bultendeki gunluk kaza listesi eksik olabilir.';
     } else if (pendingUnverified > 0) {
       safetyClass = 'REVIEW_REQUIRED';
       safetyReason = `${pendingUnverified} vaka tek kaynaklı olarak doğrulanmayı bekliyor; bültende UNVERIFIED olarak işaretlenmiştir.`;
@@ -240,6 +274,12 @@ export class BulletinAgent {
     const reportDay = shiftDate(targetDate, -1);
     const dayAccidents = getDayAccidents(reportDay).map(describeAccident);
     const week = getWeekSummary(reportDay);
+    const lateAdded = getLateAddedAccidents(targetDate, reportDay)
+      .map(acc => ({ ...describeAccident(acc), eventDate: acc.event_date }));
+    const emptyDayNotice = extraction.degraded
+      ? `⚠️ Cikarim servisi kullanilamadi (${extraction.deferred} haber beklemede). `
+        + 'Bu gunun kazalari henuz islenmedi — kaza olmadigi anlamina gelmez.'
+      : null;
 
     const unverifiedItems = queryDb(`
       SELECT accident_id, event_date, district, location_normalized, death_count, source_name
@@ -264,7 +304,9 @@ ${dayAccidents.length > 0 ? dayAccidents.map(a => [
   `- ${a.badge} **${a.place}**${a.time ? ` (${a.time})` : ''}`,
   `  - ${a.casualties}${a.cause ? ` — ${a.cause}` : ''}`,
   `  - Kaynak: ${a.sourceUrl ? `[${a.sourceName}](${a.sourceUrl})` : a.sourceName}`
-].join('\n')).join('\n') : 'Bu gün için kayda geçmiş trafik kazası bulunmamaktadır.'}
+].join('\n')).join('\n') : (emptyDayNotice || 'Bu gün için kayda geçmiş trafik kazası bulunmamaktadır.')}
+
+${lateAdded.length > 0 ? `## 📌 Sonradan Eklenen Kazalar\n\nBu koşuda geç tespit edilip kayda geçen, daha önceki tarihlere ait olaylar:\n\n${lateAdded.map(a => `- ${a.badge} **${a.eventDate}** — ${a.place}: ${a.casualties}${a.cause ? ` (${a.cause})` : ''}${a.sourceUrl ? ` — [${a.sourceName}](${a.sourceUrl})` : ''}`).join('\n')}\n\n---\n` : ''}
 
 *🟢 birden fazla kaynakla doğrulanmış · 🟡 tek kaynak, teyit bekliyor · 🟠 kaynaklar çelişiyor*
 
@@ -333,8 +375,8 @@ ${dayAccidents.length > 0 ? dayAccidents.map(a => [
   `${a.badge} ${a.place}${a.time ? ` (${a.time})` : ''}`,
   `   ${a.casualties}${a.cause ? ` — ${a.cause}` : ''}`,
   a.sourceUrl ? `   ${a.sourceUrl}` : `   Kaynak: ${a.sourceName}`
-].join('\n')).join('\n') : 'Kayda geçmiş trafik kazası bulunmamaktadır.'}
-
+].join('\n')).join('\n') : (emptyDayNotice || 'Kayda geçmiş trafik kazası bulunmamaktadır.')}
+${lateAdded.length > 0 ? `\n📌 **SONRADAN EKLENEN (${lateAdded.length})**\n${lateAdded.map(a => `${a.badge} ${a.eventDate} — ${a.place}: ${a.casualties}`).join('\n')}\n` : ''}
 📈 **SON 7 GÜN**
 ${week.totals.accidents} kaza · ${week.totals.deaths} can kaybı · ${week.totals.injuries} yaralı
 ${week.districts.length > 0 ? week.districts.map(d => `${d.district} ${d.accidents}`).join(' · ') : 'İlçe kaydı yok'}

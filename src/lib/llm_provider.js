@@ -4,6 +4,31 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Shared health record for the whole process. Each agent builds its own LLMProvider, so
+// without this a provider outage is only visible as a console warning inside one instance —
+// which is how a nine-day extraction outage (22-30 September 2026) ran with errors: [] and
+// a VERIFIED_RUN status while every bulletin truthfully-looking reported zero accidents.
+export const llmHealth = {
+  calls: 0,
+  fallbackCalls: 0,
+  lastError: null,
+  failedProviders: []
+};
+
+export function resetLlmHealth() {
+  llmHealth.calls = 0;
+  llmHealth.fallbackCalls = 0;
+  llmHealth.lastError = null;
+  llmHealth.failedProviders = [];
+}
+
+function recordProviderFailure(provider, err) {
+  llmHealth.lastError = `${provider}: ${err.message}`;
+  if (!llmHealth.failedProviders.includes(provider)) {
+    llmHealth.failedProviders.push(provider);
+  }
+}
+
 export class LLMProvider {
   constructor() {
     this.geminiKey = process.env.GEMINI_API_KEY || '';
@@ -15,6 +40,7 @@ export class LLMProvider {
 
   async generateText(prompt, options = {}) {
     const { systemPrompt = '', temperature = 0.2, maxTokens = 1000 } = options;
+    llmHealth.calls++;
 
     if (this.preferredProvider === 'gemini' && this.geminiKey) {
       try {
@@ -23,6 +49,7 @@ export class LLMProvider {
         return result;
       } catch (err) {
         console.warn('Gemini Provider call failed, attempting fallback:', err.message);
+        recordProviderFailure('gemini', err);
       }
     }
 
@@ -33,10 +60,16 @@ export class LLMProvider {
         return result;
       } catch (err) {
         console.warn('Cerebras Provider call failed, attempting fallback:', err.message);
+        recordProviderFailure('cerebras', err);
       }
     }
 
-    // Heuristic Fallback
+    // Heuristic fallback. It never invents event facts, so a run that lands here produces no
+    // accident records at all: the caller must treat this as a failed run, not an empty day.
+    llmHealth.fallbackCalls++;
+    if (!this.geminiKey && !this.cerebrasKey && !llmHealth.lastError) {
+      llmHealth.lastError = 'No LLM API key configured (GEMINI_API_KEY / CEREBRAS_API_KEY)';
+    }
     this.lastProvider = 'heuristic_fallback';
     return this.heuristicFallback(prompt);
   }

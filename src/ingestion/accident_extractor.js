@@ -143,14 +143,24 @@ Return strictly JSON:
 
       let matchedAccident = null;
       let highestScore = 0.0;
+      let matchedOnRoad = false;
 
       for (const candidate of existingMatches) {
+        const roadsAgree = Boolean(
+          candidate.road_normalized && extracted.road_normalized
+          && candidate.road_normalized === extracted.road_normalized
+        );
         let score = 0.5; // Base date + district match
-        if (candidate.road_normalized && extracted.road_normalized && candidate.road_normalized === extracted.road_normalized) {
+        if (roadsAgree) {
           score += 0.3;
         }
+        // A matching non-zero death count is a strong identity signal. Fatal crashes are rare,
+        // so two reports of a death on the same day in the same district are nearly always one
+        // event covered twice — the crash itself, then the follow-up on the suspect. Follow-ups
+        // routinely name the road differently ("Anayol" vs "Patates Ambarları Yolu"), which held
+        // the score at 0.70, created a second record, and double-counted the death.
         if (candidate.death_count === deathCount) {
-          score += 0.15;
+          score += deathCount > 0 ? 0.3 : 0.15;
         }
         if (candidate.injury_count === injuryCount) {
           score += 0.05;
@@ -159,6 +169,7 @@ Return strictly JSON:
         if (score > highestScore) {
           highestScore = score;
           matchedAccident = candidate;
+          matchedOnRoad = roadsAgree;
         }
       }
 
@@ -194,6 +205,34 @@ Return strictly JSON:
             `${article.source_name} (${deathCount} Ölü, ${injuryCount} Yaralı)`,
             JSON.stringify({ new_source_url: article.url, extracted_data: extracted, source_tier: sourceTier })
           ]);
+        }
+
+        // Merging two fatal reports that disagree on the road is the right default — a double
+        // counted death is worse than a merged pair — but it is a judgement call, so it goes to
+        // review rather than being assumed correct. Non-blocking: it is not a death-count conflict.
+        if (deathCount > 0 && !matchedOnRoad) {
+          const duplicateReviewId = `DUP-${matchedAccident.accident_id}`;
+          const alreadyFlagged = queryDb(
+            "SELECT review_id FROM review_queue WHERE accident_id = ? AND status = 'PENDING' LIMIT 1",
+            [duplicateReviewId]
+          );
+          if (alreadyFlagged.length === 0) {
+            executeDb(`
+              INSERT INTO review_queue (
+                accident_id, issue_type, title, description, status, match_confidence, source_a, source_b, details_json
+              ) VALUES (?, 'POSSIBLE_DUPLICATE_FATAL', ?, ?, 'PENDING', ?, ?, ?, ?)
+            `, [
+              duplicateReviewId,
+              `Olası mükerrer ölümlü kaza kaydı (${article.source_name})`,
+              `Aynı gün ve ilçede ${deathCount} can kaybı bildiren ikinci kaynak, farklı yol adı veriyor. `
+                + `Mevcut: ${matchedAccident.road_normalized || 'belirtilmemiş'}. `
+                + `Yeni: ${extracted.road_normalized || 'belirtilmemiş'}. Tek olay varsayılarak birleştirildi.`,
+              highestScore >= 0.9 ? 'HIGH' : 'MEDIUM',
+              `${matchedAccident.source_name} (${matchedAccident.road_normalized || 'yol belirtilmemiş'})`,
+              `${article.source_name} (${extracted.road_normalized || 'yol belirtilmemiş'})`,
+              JSON.stringify({ new_source_url: article.url, match_score: highestScore })
+            ]);
+          }
         }
 
         // Add source provenance record

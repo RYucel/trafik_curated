@@ -7,6 +7,7 @@ import { RelevanceClassifier } from '../src/ingestion/relevance_classifier.js';
 import { ArticleFetcher } from '../src/ingestion/article_fetcher.js';
 import { AccidentExtractor } from '../src/ingestion/accident_extractor.js';
 import { AnalyticsEngine } from '../src/analytics/engine.js';
+import { llmHealth, resetLlmHealth } from '../src/lib/llm_provider.js';
 import { BulletinAgent } from '../src/agents/bulletin_agent.js';
 
 import { KibrisGazetesiAdapter } from '../src/ingestion/adapters/kibris_gazetesi.js';
@@ -55,6 +56,7 @@ async function executeDailyShadowPilot(targetDate = null) {
 
   console.log(`=== STARTING 7-DAY SHADOW PILOT EXECUTION FOR ${dateStr} ===`);
   const startTime = Date.now();
+  resetLlmHealth();
 
   const collector = new RSSCollector();
   const classifier = new RelevanceClassifier();
@@ -146,6 +148,30 @@ async function executeDailyShadowPilot(targetDate = null) {
     }
   }
 
+  // Without an external model the extractor refuses to invent facts, so every candidate is
+  // deferred and the run produces zero accidents. That is a failed run, not a quiet day, and
+  // it must be recorded as an error — otherwise the bulletin reports "no accidents" with full
+  // confidence while nothing was actually extracted.
+  if (llmHealth.fallbackCalls > 0) {
+    runErrors.push({
+      error: `LLM extraction unavailable: ${llmHealth.fallbackCalls}/${llmHealth.calls} calls fell back to heuristics`,
+      last_provider_error: llmHealth.lastError,
+      failed_providers: llmHealth.failedProviders,
+      impact: 'No structured accident records could be extracted from this run.'
+    });
+  }
+
+  // Close review items whose article has since been extracted or rejected, so the queue
+  // reflects what still needs a human rather than growing forever after an outage.
+  executeDb(`
+    UPDATE review_queue
+    SET status = 'RESOLVED', resolved_at = CURRENT_TIMESTAMP, resolved_by = 'auto:reprocessed'
+    WHERE status = 'PENDING' AND issue_type = 'LLM_EXTRACTION_UNAVAILABLE'
+      AND accident_id IN (
+        SELECT 'NEWS-' || id FROM news_articles WHERE processing_status != 'REVIEW_REQUIRED'
+      )
+  `);
+
   // 3. Gather Ingestion Metrics (Disambiguating Per-Run Delta vs Lifetime DB Totals)
   const llmProviderStates = [...new Set([
     classifier.llm.lastProvider,
@@ -180,7 +206,11 @@ async function executeDailyShadowPilot(targetDate = null) {
       model: llmProviderStates.includes('gemini')
         ? classifier.llm.geminiModel
         : (llmProviderStates.includes('cerebras') ? 'llama3.1-8b' : null),
-      estimated_api_cost_usd: usedExternalLlm ? 'UNKNOWN' : '0.00'
+      estimated_api_cost_usd: usedExternalLlm ? 'UNKNOWN' : '0.00',
+      total_calls: llmHealth.calls,
+      fallback_calls: llmHealth.fallbackCalls,
+      extraction_degraded: llmHealth.fallbackCalls > 0,
+      last_provider_error: llmHealth.lastError
     }
   };
 
@@ -268,9 +298,11 @@ async function executeDailyShadowPilot(targetDate = null) {
     pilot_state: pilotState,
     planned_pilot_dates: plannedPilotDates,
     missed_pilot_dates: missedPilotDates,
-    latest_run_status: runErrors.length === 0 && collectResult.feeds_failed === 0 && extractionReviewRequiredCount === 0
-      ? 'VERIFIED_RUN'
-      : 'COMPLETED_WITH_ERRORS',
+    latest_run_status: llmHealth.fallbackCalls > 0
+      ? 'DEGRADED_NO_LLM_EXTRACTION'
+      : (runErrors.length === 0 && collectResult.feeds_failed === 0 && extractionReviewRequiredCount === 0
+        ? 'VERIFIED_RUN'
+        : 'COMPLETED_WITH_ERRORS'),
     telegram_mode: 'DELEGATED_TO_BROADCAST_STEP',
     latest_new_canonical_accidents: newCanonicalCount,
     total_canonical_accidents_db: metrics.total_canonical_accidents,
