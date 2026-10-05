@@ -128,8 +128,51 @@ function testNoDuplicateFatalRecordsRemainInTheDatabase() {
     'same-day same-district fatal records with an identical death count are double counts');
 }
 
+async function testQuotaExhaustionIsReadableAfterTheFact() {
+  const savedFetch = globalThis.fetch;
+  const savedKey = process.env.GEMINI_API_KEY;
+  try {
+    process.env.GEMINI_API_KEY = 'test-key';
+    delete process.env.CEREBRAS_API_KEY;
+    resetLlmHealth();
+
+    // What Gemini actually returns once a quota is gone. "429 Too Many Requests" on its own
+    // cannot be told apart from a per-minute burst, which is why the September outage had to
+    // be diagnosed by guesswork.
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      text: async () => JSON.stringify({
+        error: {
+          code: 429,
+          status: 'RESOURCE_EXHAUSTED',
+          message: 'You exceeded your current quota. Limit: 200 requests per day per project.'
+        }
+      })
+    });
+
+    const provider = new LLMProvider();
+    await provider.generateText('extract structured record_type');
+
+    assert.strictEqual(provider.lastProvider, 'heuristic_fallback');
+    assert.match(llmHealth.lastError, /RESOURCE_EXHAUSTED/);
+    assert.match(llmHealth.lastError, /exceeded your current quota/);
+
+    // And it must be visible that nothing was configured to take over.
+    assert.ok(llmHealth.failedProviders.includes('cerebras:unconfigured'));
+  } finally {
+    globalThis.fetch = savedFetch;
+    resetLlmHealth();
+    if (savedKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = savedKey;
+  }
+}
+
 await testFallbackIsRecordedAsAFailure();
 console.log('✓ A heuristic fallback is recorded as a provider failure');
+await testQuotaExhaustionIsReadableAfterTheFact();
+console.log('✓ A quota exhaustion is readable after the fact, with no provider to take over');
 testPilotTreatsAFallbackRunAsDegraded();
 console.log('✓ A fallback run is reported as degraded, and the deferred queue drains');
 await testBulletinDoesNotClaimAQuietDayWhileExtractionIsDown();

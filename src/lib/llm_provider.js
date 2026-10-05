@@ -53,6 +53,12 @@ export class LLMProvider {
       }
     }
 
+    // Recorded without clobbering lastError: the primary provider's message is the one
+    // that explains the outage, this only says nothing was there to take over.
+    if (!this.cerebrasKey && !llmHealth.failedProviders.includes('cerebras:unconfigured')) {
+      llmHealth.failedProviders.push('cerebras:unconfigured');
+    }
+
     if (this.cerebrasKey) {
       try {
         const result = await this.callCerebras(prompt, systemPrompt, temperature, maxTokens);
@@ -101,7 +107,21 @@ export class LLMProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+      const detail = await response.text().catch(() => '');
+      const apiMessage = (() => {
+        try {
+          const parsed = JSON.parse(detail);
+          return parsed?.error?.status
+            ? `${parsed.error.status}: ${parsed.error.message}`
+            : parsed?.error?.message || '';
+        } catch {
+          return detail.slice(0, 300);
+        }
+      })();
+      throw new Error(
+        `Gemini API error: ${response.status} ${response.statusText}`
+        + (apiMessage ? ` — ${apiMessage}` : '')
+      );
     }
 
     const data = await response.json();
@@ -131,7 +151,11 @@ export class LLMProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Cerebras API error: ${response.status} ${response.statusText}`);
+      const detail = await response.text().catch(() => '');
+      throw new Error(
+        `Cerebras API error: ${response.status} ${response.statusText}`
+        + (detail ? ` — ${detail.slice(0, 300)}` : '')
+      );
     }
 
     const data = await response.json();
