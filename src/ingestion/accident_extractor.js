@@ -3,6 +3,7 @@ import { LLMProvider } from '../lib/llm_provider.js';
 import { executeDb, queryDb } from '../lib/db.js';
 import { getSourceTier } from './source_hierarchy.js';
 import { evaluateVerificationStatus } from './verification_engine.js';
+import { refreshVerificationStatus } from './corroboration.js';
 
 function generateHash(text) {
   return crypto.createHash('md5').update(text).digest('hex');
@@ -235,20 +236,35 @@ Return strictly JSON:
           }
         }
 
-        // Add source provenance record
-        executeDb(`
-          INSERT INTO accident_sources (
-            accident_id, source_tier, source_name, source_url, published_at,
-            extracted_death_count, extracted_injury_count, extracted_cause, raw_snippet
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          matchedAccident.accident_id, sourceTier, article.source_name, article.url, article.published_at,
-          deathCount, injuryCount, extracted.reported_cause || '', article.title
-        ]);
+        // Add source provenance record, once per article: a re-processed article is not a new source.
+        const alreadyLinked = article.url && queryDb(
+          'SELECT 1 AS hit FROM accident_sources WHERE accident_id = ? AND source_url = ? LIMIT 1',
+          [matchedAccident.accident_id, article.url]
+        ).length > 0;
+        if (!alreadyLinked) {
+          executeDb(`
+            INSERT INTO accident_sources (
+              accident_id, source_tier, source_name, source_url, published_at,
+              extracted_death_count, extracted_injury_count, extracted_cause, raw_snippet
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            matchedAccident.accident_id, sourceTier, article.source_name, article.url, article.published_at,
+            deathCount, injuryCount, extracted.reported_cause || '', article.title
+          ]);
+        }
+
+        // A second outlet reporting the same crash is what corroboration means; re-evaluate now
+        // instead of leaving the record at the status its first article gave it.
+        const verification = refreshVerificationStatus(matchedAccident.accident_id);
 
         executeDb("UPDATE news_articles SET processing_status = 'EXTRACTED' WHERE id = ?", [article.id]);
 
-        return { status: 'ATTACHED_EXISTING', accident_id: matchedAccident.accident_id, match_score: highestScore };
+        return {
+          status: 'ATTACHED_EXISTING',
+          accident_id: matchedAccident.accident_id,
+          match_score: highestScore,
+          verification_status: verification?.to
+        };
 
       } else {
         // NEW ACCIDENT RECORD

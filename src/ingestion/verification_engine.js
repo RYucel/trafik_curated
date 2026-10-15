@@ -1,5 +1,9 @@
 import { getSourceTier } from './source_hierarchy.js';
 
+function outletKey(sourceName) {
+  return String(sourceName || '').trim().toLocaleLowerCase('tr-TR');
+}
+
 export function evaluateVerificationStatus(accident, sources = []) {
   if (!accident.event_date || !accident.district) {
     return {
@@ -36,11 +40,16 @@ export function evaluateVerificationStatus(accident, sources = []) {
     }
   }
 
-  // Check tiers of sources
+  // Check tiers of sources. Corroboration means independent outlets, so media sources are
+  // counted per outlet: a crash report and its follow-up on the same site are one voice.
   const tiers = sources.map(s => getSourceTier(s.source_name).code);
   const hasTier1 = tiers.includes('TIER_1_OFFICIAL');
   const hasTier2 = tiers.includes('TIER_2_AGENCY');
-  const tier3Count = tiers.filter(t => t === 'TIER_3_ESTABLISHED_MEDIA').length;
+  const tier3Count = new Set(
+    sources
+      .filter(s => getSourceTier(s.source_name).code === 'TIER_3_ESTABLISHED_MEDIA')
+      .map(s => outletKey(s.source_name))
+  ).size;
 
   if (hasTier1 || hasTier2) {
     return {

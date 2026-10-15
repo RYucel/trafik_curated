@@ -6,6 +6,7 @@ import { isCandidateTrafficArticle } from '../src/ingestion/relevance_filter.js'
 import { RelevanceClassifier } from '../src/ingestion/relevance_classifier.js';
 import { ArticleFetcher } from '../src/ingestion/article_fetcher.js';
 import { AccidentExtractor } from '../src/ingestion/accident_extractor.js';
+import { promoteCorroboratedAccidents } from '../src/ingestion/corroboration.js';
 import { AnalyticsEngine } from '../src/analytics/engine.js';
 import { llmHealth, resetLlmHealth } from '../src/lib/llm_provider.js';
 import { BulletinAgent } from '../src/agents/bulletin_agent.js';
@@ -159,6 +160,12 @@ async function executeDailyShadowPilot(targetDate = null) {
       failed_providers: llmHealth.failedProviders,
       impact: 'No structured accident records could be extracted from this run.'
     });
+  }
+
+  // Promote records that a second outlet has since corroborated. Idempotent; also backfills
+  // records whose second source was attached before the extractor re-evaluated on attach.
+  for (const p of promoteCorroboratedAccidents()) {
+    console.log(`[Corroboration] ${p.accident_id}: ${p.from} -> ${p.to}`);
   }
 
   // Close review items whose article has since been extracted or rejected, so the queue
