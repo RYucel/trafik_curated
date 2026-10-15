@@ -201,11 +201,24 @@ function getCuratedPeriodStats(targetDate, year) {
     .sort((a, b) => b.period_end.localeCompare(a.period_end))[0] || null;
 }
 
+// Event records dated after a curated snapshot. Without them the headline stays frozen at the
+// snapshot until someone hand-edits the curated file. Verified records extend the total;
+// single-source or conflicting ones are reported separately and never enter it.
+function getRecordsSinceSnapshot(periodEnd, targetDate) {
+  return queryDb(`
+    SELECT
+      COUNT(CASE WHEN fatal = 1 AND verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED') THEN 1 END) AS fatal_accidents,
+      COALESCE(SUM(CASE WHEN fatal = 1 AND verification_status IN ('VERIFIED', 'MEDIA_CORROBORATED') THEN death_count END), 0) AS deaths,
+      COALESCE(SUM(CASE WHEN fatal = 1 AND verification_status IN ('UNVERIFIED', 'CONFLICT') THEN death_count END), 0) AS pending_deaths
+    FROM accidents
+    WHERE event_date > ? AND event_date <= ? AND record_type = 'INDIVIDUAL_ACCIDENT'
+  `, [periodEnd, targetDate])[0] || { fatal_accidents: 0, deaths: 0, pending_deaths: 0 };
+}
+
 export class BulletinAgent {
   static async generateDailyBulletin(targetDate = new Date().toISOString().substring(0, 10)) {
     const period = getPeriod(targetDate);
     const curatedStats = getCuratedPeriodStats(targetDate, period.year);
-    const statisticsPeriod = curatedStats ? getPeriod(curatedStats.period_end) : period;
     const extraction = getExtractionHealth(targetDate);
     // 1. Check for Pending Conflict Items in Review Queue
     const pendingConflicts = queryDb(`SELECT COUNT(*) as cnt FROM review_queue WHERE status = 'PENDING' AND issue_type = 'CONFLICTING_DEATH_COUNT'`)[0]?.cnt || 0;
@@ -255,12 +268,17 @@ export class BulletinAgent {
       SELECT COALESCE(SUM(death_count), 0) as deaths FROM accidents WHERE event_date BETWEEN ? AND ?
     `, [period.twoYearsAgoStart, period.twoYearsAgoEnd])[0] || {};
 
+    const sinceSnapshot = curatedStats ? getRecordsSinceSnapshot(curatedStats.period_end, period.endDate) : null;
     const stats2026 = curatedStats ? {
-      fatal_accidents: curatedStats.fatal_accidents,
-      deaths: curatedStats.deaths,
+      fatal_accidents: curatedStats.fatal_accidents + sinceSnapshot.fatal_accidents,
+      deaths: curatedStats.deaths + sinceSnapshot.deaths,
       injuries: curatedStats.injuries
     } : rawStats2026;
     const deaths2026 = stats2026.deaths || 0;
+    const pendingDeaths2026 = sinceSnapshot?.pending_deaths || 0;
+    const pendingDeathsLine = pendingDeaths2026 > 0
+      ? `+${pendingDeaths2026} doğrulama bekleyen can kaybı (doğrulanmamış, toplama dahil değil)`
+      : null;
     const comparisonDeaths2026 = curatedStats?.comparison_current_deaths ?? deaths2026;
     const deaths2025 = curatedStats?.comparison_2025_deaths ?? rawStats2025Same.deaths ?? 0;
     const deaths2024 = curatedStats?.comparison_2024_deaths ?? rawStats2024Same.deaths ?? 0;
@@ -293,8 +311,8 @@ export class BulletinAgent {
 
 **Tarih**: ${targetDate}  
 **Güvenlik Sınıfı**: \`${safetyClass}\` (${safetyReason})  
-**Veri Kapsamı**: ${statisticsPeriod.rangeLabel} (YTD / Kısmi Yıl)
-**İstatistik Niteliği**: ${curatedStats ? `${curatedStats.classification} — olay kayıtlarının ham toplamı değildir` : 'CANONICAL_EVENT_SUM'}
+**Veri Kapsamı**: ${period.rangeLabel} (YTD / Kısmi Yıl)
+**İstatistik Niteliği**: ${curatedStats ? `${curatedStats.classification} (${curatedStats.period_end} itibarıyla) + sonrası doğrulanmış olay kayıtları` : 'CANONICAL_EVENT_SUM'}
 
 ---
 
@@ -328,21 +346,21 @@ ${unverifiedItems.length > 0 ? unverifiedItems.map(acc => `- 🟡 **[UNVERIFIED]
 
 ---
 
-## 📊 ${period.year} YTD (${statisticsPeriod.shortLabel} İstatistiksel Gözlem)
+## 📊 ${period.year} YTD (${period.shortLabel} İstatistiksel Gözlem)
 
 - **Can Kaybı**: ${deaths2026}
 - **Ölümlü Kaza Sayısı**: ${stats2026.fatal_accidents || 0}
-${stats2026.injuries === null ? '- **Yaralı Sayısı**: Bu dönem için doğrulanmış toplu sayı yayımlanmadı.' : `- **Yaralı Sayısı**: ${stats2026.injuries || 0}`}
+${pendingDeathsLine ? `- 🟡 ${pendingDeathsLine}\n` : ''}${stats2026.injuries === null ? '- **Yaralı Sayısı**: Bu dönem için doğrulanmış toplu sayı yayımlanmadı.' : `- **Yaralı Sayısı**: ${stats2026.injuries || 0}`}
 
 ---
 
 ## 📊 Dönemsel Karşılaştırma
 
-- **${period.year} Karşılaştırma Tabanı (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${comparisonDeaths2026} Can Kaybı
-- **${period.year - 1} Aynı Dönem (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${deaths2025} Can Kaybı (Değişim: ${formatChange(yoyPct2025)})
-- **${period.year - 2} Aynı Dönem (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel})**: ${deaths2024} Can Kaybı (Değişim: ${formatChange(yoyPct2024)})
+- **${period.year} Karşılaştırma Tabanı (${curatedStats?.comparison_period_label || period.shortLabel})**: ${comparisonDeaths2026} Can Kaybı
+- **${period.year - 1} Aynı Dönem (${curatedStats?.comparison_period_label || period.shortLabel})**: ${deaths2025} Can Kaybı (Değişim: ${formatChange(yoyPct2025)})
+- **${period.year - 2} Aynı Dönem (${curatedStats?.comparison_period_label || period.shortLabel})**: ${deaths2024} Can Kaybı (Değişim: ${formatChange(yoyPct2024)})
 
-*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel}) ile yapılmıştır. Kısmi yıl verisi tam yıl toplamı ile kıyaslanamaz.*
+*Not: Karşılaştırmalar yalnızca aynı tarih aralıkları (${curatedStats?.comparison_period_label || period.shortLabel}) ile yapılmıştır. Kısmi yıl verisi tam yıl toplamı ile kıyaslanamaz.*
 
 ---
 
@@ -353,6 +371,7 @@ ${stats2026.injuries === null ? '- **Yaralı Sayısı**: Bu dönem için doğrul
 3. **TIER 3 (Established Media)**: Kıbrıs Postası, Yenidüzen, Kıbrıs Gazetesi
 ${curatedStats ? `\nDönem toplamı kaynakları:\n${curatedStats.sources.map(source => `- ${source}`).join('\n')}` : ''}
 ${curatedStats?.derivation ? `\nTüretilmiş toplam hesabı:\n${curatedStats.derivation.map(item => `- ${item}`).join('\n')}` : ''}
+${curatedStats ? `\n${curatedStats.period_end} sonrası doğrulanmış olay kayıtları: +${sinceSnapshot.deaths} can kaybı / +${sinceSnapshot.fatal_accidents} ölümlü kaza` : ''}
 
 ---
 
@@ -366,9 +385,9 @@ Bu bülten **KKTC Trafik Intelligence Platformu** tarafından kanıta dayalı ve
 📅 ${targetDate}
 🔒 Güvenlik Sınıfı: ${safetyClass}
 ━━━━━━━━━━━━━━━
-📊 **${period.year} CAN KAYBI (${statisticsPeriod.shortLabel} YTD)**
+📊 **${period.year} CAN KAYBI (${period.shortLabel} YTD)**
 ☠️ **${deaths2026} Can Kaybı** (${stats2026.fatal_accidents || 0} Ölümlü Kaza)
-📅 ${curatedStats?.comparison_period_label || statisticsPeriod.shortLabel} karşılaştırması: ${period.year} ${comparisonDeaths2026}, ${period.year - 1} ${deaths2025} (${formatChange(yoyPct2025)}), ${period.year - 2} ${deaths2024} (${formatChange(yoyPct2024)})
+${pendingDeathsLine ? `🟡 ${pendingDeathsLine}\n` : ''}📅 ${curatedStats?.comparison_period_label || period.shortLabel} karşılaştırması: ${period.year} ${comparisonDeaths2026}, ${period.year - 1} ${deaths2025} (${formatChange(yoyPct2025)}), ${period.year - 2} ${deaths2024} (${formatChange(yoyPct2024)})
 
 🚨 **${formatDayLabel(reportDay)} KAZALARI (${dayAccidents.length})**
 ${dayAccidents.length > 0 ? dayAccidents.map(a => [
@@ -394,9 +413,10 @@ ${week.causes.length > 0 ? `Başlıca neden: ${week.causes.map(([label, count]) 
       markdown: markdownBulletin,
       telegram: telegramBulletin,
       deaths2026,
+      pendingDeaths2026,
       fatal2026: stats2026.fatal_accidents || 0,
       injuries2026: stats2026.injuries,
-      data_period: statisticsPeriod.rangeLabel,
+      data_period: period.rangeLabel,
       yoyPct2025
     };
   }

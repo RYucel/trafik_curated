@@ -108,6 +108,54 @@ async function testBulletinListsTheReportDayAccidents() {
   }
 }
 
+async function testYtdDeathsIncludeRecordsAfterCuratedSnapshot() {
+  // The headline used to stay frozen at the last curated snapshot: deaths recorded after its
+  // period_end never reached Telegram until someone hand-edited the curated file.
+  const targetDate = '2026-12-31';
+  const eventDate = '2026-12-30';
+  const verifiedId = 'ACC-20261230-TEST-YTD-VERIFIED';
+  const unverifiedId = 'ACC-20261230-TEST-YTD-UNVERIFIED';
+  const inconsistentId = 'ACC-20261230-TEST-YTD-NONFATAL';
+  const ids = [verifiedId, unverifiedId, inconsistentId];
+
+  const insertFatal = (id, deaths, status, fatal = 1) =>
+    executeDb(`
+      INSERT INTO accidents (
+        accident_id, event_date, event_time, year, month, district, location_normalized,
+        road_normalized, fatal, death_count, injury_count, cause_category, source_type,
+        source_tier, source_name, source_url, record_type, verification_status, content_hash
+      ) VALUES (?, ?, '08:30', 2026, 12, 'Lefkoşa', 'YTD Test', 'YTD Test', ?, ?, 0, 'SPEED',
+        'Established Media', 'TIER_3_ESTABLISHED_MEDIA', 'Test Haber', ?,
+        'INDIVIDUAL_ACCIDENT', ?, ?)
+    `, [id, eventDate, fatal, deaths, `https://example.test/${id}`, status, `content-${id}`]);
+
+  try {
+    executeDb(`DELETE FROM accidents WHERE accident_id IN (?, ?, ?)`, ids);
+    const before = await BulletinAgent.generateDailyBulletin(targetDate);
+
+    insertFatal(verifiedId, 2, 'VERIFIED');
+    insertFatal(unverifiedId, 1, 'UNVERIFIED');
+    // A row whose death_count disagrees with its fatal flag must not move the public total.
+    insertFatal(inconsistentId, 1, 'VERIFIED', 0);
+    const after = await BulletinAgent.generateDailyBulletin(targetDate);
+
+    // Verified deaths after the snapshot move the headline; single-source ones do not.
+    assert.strictEqual(after.deaths2026, before.deaths2026 + 2);
+    assert.strictEqual(after.fatal2026, before.fatal2026 + 1);
+    assert.ok(after.telegram.includes(`${after.deaths2026} Can Kaybı`));
+
+    // Single-source deaths are shown on their own line instead of being silently dropped.
+    assert.strictEqual(after.pendingDeaths2026, before.pendingDeaths2026 + 1);
+    assert.ok(after.telegram.includes(`+${after.pendingDeaths2026} doğrulama bekleyen can kaybı`));
+
+    // The coverage label runs to the bulletin date, not to the snapshot's period_end.
+    assert.match(after.telegram, /Ocak–Aralık YTD/);
+    assert.strictEqual(after.data_period, '1 Ocak 2026 – 31 Aralık 2026');
+  } finally {
+    executeDb(`DELETE FROM accidents WHERE accident_id IN (?, ?, ?)`, ids);
+  }
+}
+
 function testBulletinDoesNotFabricateAnalysis() {
   const agent = fs.readFileSync('src/agents/bulletin_agent.js', 'utf8');
 
@@ -450,6 +498,8 @@ await testTelegramBulletinUsesConfiguredPagesUrl();
 console.log('✓ Telegram bulletin uses the configured GitHub Pages URL');
 await testBulletinListsTheReportDayAccidents();
 console.log('✓ Bulletin lists the report day accidents, badged by verification status');
+await testYtdDeathsIncludeRecordsAfterCuratedSnapshot();
+console.log('✓ YTD deaths include records after the curated snapshot');
 testBulletinDoesNotFabricateAnalysis();
 console.log('✓ Bulletin no longer carries a fabricated analysis section');
 await testPublishedDateIsNotSentTwice();
