@@ -92,7 +92,7 @@ export const HistoricalTimeline = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 font-sans">Yaralı Sayısı:</span>
-                <span className="text-amber-400">{item.injured}</span>
+                <span className="text-amber-400">{item.injured ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 font-sans">Toplam Kaza:</span>

@@ -427,6 +427,14 @@ async function testPublicAnalyticsDoNotExposePollutedBreakdowns() {
 
   assert.strictEqual(current.deaths, 23);
   assert.strictEqual(current.fatal_accidents, 19);
+
+  // 2025 is the PGM year-end total, not the January–February partial from the DPÖ PDF.
+  // No injury breakdown was published, so those fields stay null instead of a fake zero.
+  const year2025 = trends.find(item => item.year === 2025);
+  assert.strictEqual(year2025.deaths, 42);
+  assert.strictEqual(year2025.fatal_accidents, 39);
+  assert.strictEqual(year2025.total_accidents, 3757);
+  assert.strictEqual(year2025.injured, null);
   assert.deepStrictEqual(await AnalyticsEngine.getDistrictStats(), []);
   assert.deepStrictEqual(await AnalyticsEngine.getCauseStats(), []);
   assert.deepStrictEqual(await AnalyticsEngine.getMonthlyDistribution(), []);

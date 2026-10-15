@@ -83,6 +83,6 @@ DERIVED STATISTIC (Monthly/YTD totals, YoY period comparisons, district distribu
 ```
 
 - **Separation Guardrail**:
-  1. `1975–2025 Historical Statistics`: Official DPÖ annual publication records stored in `historical_statistics`.
+  1. `1975–2025 Historical Statistics`: Official DPÖ annual publication records (1975–2024) stored in `historical_statistics`; 2025 is the PGM year-end total (42 deaths / 39 fatal / 3,757 accidents) with no published injury breakdown (NULL).
   2. `Canonical Accidents`: Event-level records stored in `accidents` (`record_type = 'INDIVIDUAL_ACCIDENT'`).
   3. `Aggregate Reports`: Periodic weekly police summaries stored in `news_articles` (`processing_status = 'EXTRACTED_AGGREGATE'`). **Never counted as individual accidents.**

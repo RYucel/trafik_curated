@@ -46,6 +46,14 @@ def init_database():
         schema_sql = f.read()
     cursor.executescript(schema_sql)
 
+    # An older database keeps the NOT NULL DEFAULT 0 injury columns, where INSERT OR REPLACE
+    # would silently store 0 for years with no published breakdown.
+    not_null = {row[1] for row in cursor.execute("PRAGMA table_info(historical_statistics)") if row[3] == 1}
+    if not_null & {'injury_accidents', 'injured', 'damage_accidents', 'injured_per_injury_accident'}:
+        conn.close()
+        raise SystemExit("historical_statistics has the old NOT NULL injury columns; "
+                         "run scripts/migrate_historical_statistics.py first.")
+
     # 1. Populate Historical Statistics (1975-2025 PDF)
     hist_json_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "processed", "historical_1975_2025.json")
     if os.path.exists(hist_json_path):

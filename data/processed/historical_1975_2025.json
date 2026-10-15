@@ -601,14 +601,15 @@
   },
   {
     "year": 2025,
-    "fatal_accidents": 10,
-    "deaths": 11,
-    "injury_accidents": 98,
-    "injured": 119,
-    "damage_accidents": 356,
-    "total_accidents": 464,
-    "deaths_per_fatal_accident": 1.1,
-    "injured_per_injury_accident": 1.21,
-    "data_period": "2025-01 to 2025-02-27"
+    "fatal_accidents": 39,
+    "deaths": 42,
+    "injury_accidents": null,
+    "injured": null,
+    "damage_accidents": null,
+    "total_accidents": 3757,
+    "deaths_per_fatal_accident": 1.08,
+    "injured_per_injury_accident": null,
+    "data_period": "2025-01 to 2025-12 (PGM yıl sonu açıklaması; yaralı/hasar kırılımı yayımlanmadı)",
+    "source": "https://www.kibrispostasi.com/c35-KIBRIS_HABERLERI/n588325-polis-genel-muduru-adalier-2025i-degerlendirdi-onemli-suclarda-yuzde-176lik-dusus-yasandi"
   }
 ]

@@ -1,16 +1,17 @@
 -- KKTC Traffic Intelligence Database Schema
 
--- Historical Statistics Table (1975 - 2025 YTD from official PDF)
+-- Historical Statistics Table (1975-2024 official DPÖ PDF; 2025 PGM year-end totals).
+-- Injury and damage columns are NULL where the source publishes no breakdown.
 CREATE TABLE IF NOT EXISTS historical_statistics (
     year INTEGER PRIMARY KEY,
     fatal_accidents INTEGER NOT NULL DEFAULT 0,
     deaths INTEGER NOT NULL DEFAULT 0,
-    injury_accidents INTEGER NOT NULL DEFAULT 0,
-    injured INTEGER NOT NULL DEFAULT 0,
-    damage_accidents INTEGER NOT NULL DEFAULT 0,
+    injury_accidents INTEGER,
+    injured INTEGER,
+    damage_accidents INTEGER,
     total_accidents INTEGER NOT NULL DEFAULT 0,
     deaths_per_fatal_accident REAL NOT NULL DEFAULT 0.0,
-    injured_per_injury_accident REAL NOT NULL DEFAULT 0.0,
+    injured_per_injury_accident REAL,
     data_period TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
