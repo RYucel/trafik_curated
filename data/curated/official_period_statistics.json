@@ -69,5 +69,41 @@
       "https://www.expresskibris.com/haftalik-trafik-raporu-51-kaza-27-yarali",
       "https://haberkibris.com/haftalik-trafik-raporu...-iki-kisi-oldu-23-kisi-yaralandi-1529-2026-09-01.html"
     ]
+  },
+  {
+    "year": 2026,
+    "period_start": "2026-01-01",
+    "period_end": "2026-10-11",
+    "fatal_accidents": 27,
+    "deaths": 32,
+    "injuries": null,
+    "classification": "VERIFIED_COMPOSITE",
+    "comparison_period_label": "Ocak–Temmuz",
+    "comparison_current_deaths": 23,
+    "comparison_2025_deaths": 27,
+    "comparison_2024_deaths": 28,
+    "derivation": [
+      "6 Eylül 2026 türetilmiş toplamı: 28 can kaybı / 23 ölümlü kaza",
+      "7–13 Eylül resmî haftalık polis raporu: 53 kaza, 12 yaralanmalı, 41 hasarlı, ölümlü kaza yok",
+      "13–19 Eylül resmî haftalık polis raporu: 58 kaza, 15 yaralanmalı, 43 hasarlı, ölümlü kaza yok (basında 13–19 olarak etiketlendi; 14–20 Eylül haftası olduğu değerlendirilmektedir)",
+      "21–27 Eylül resmî haftalık polis raporu: 58 kaza, 15 yaralanmalı, 43 hasarlı, ölümlü kaza yok",
+      "28 Eylül–4 Ekim resmî haftalık polis raporu: 64 kaza, 2 ölümlü, 20 yaralanmalı, 42 hasarlı; 2 can kaybı (polis isim vermedi; isim eşleşmesi: biri 3 Ekim Gazimağusa Patates Ambarları Yolu'nda Raif Mavideniz): +2 can kaybı / +2 ölümlü kaza",
+      "5–11 Ekim resmî haftalık polis raporu (13 Ekim'de \"geçen hafta\" için yayımlandı): 69 kaza, 1 can kaybı, 21 yaralı (polis isim vermedi; isim eşleşmesi: 9 Ekim Gökhan köyü yolunda Ramazan Topçu (22)): +1 can kaybı / +1 ölümlü kaza",
+      "23 Eylül Alsancak (Karaoğlanoğlu Caddesi) kazasında ağır yaralanan yaya Berin Yavuz (71), 17 günlük yaşam mücadelesinin ardından 10 Ekim'de yaşamını yitirdi; kaza haftası raporunda ölümlü kaza yoktu: +1 can kaybı / +1 ölümlü kaza",
+      "Türetilmiş 11 Ekim toplamı: 32 can kaybı / 27 ölümlü kaza",
+      "Not: Dönem sonu, resmî haftalık polis raporunun kapsadığı son tarih olan 11 Ekim'dir"
+    ],
+    "sources": [
+      "https://radyoguven.gov.ct.tr/Sayfa/HaberDetay/14317",
+      "https://www.kibristurk.com/bir-haftada-53-trafik-kazasi-22-kisi-yaralandi",
+      "https://kibrisnehaber.com/haftalik-trafik-raporu-58-kazada-23-kisi-yaralandi/",
+      "https://haberkibris.com/trafikte-haftalik-bilanco-58-kaza-23-yarali-4-milyon-tlye-yakin-maddi-hasar-1602-2026-10-01.html",
+      "https://www.kibrisdetay.com/2026/10/06/haftalik-trafik-raporu-iki-kisi-oldu-33-kisi-yaralandi/",
+      "https://tak.gov.ct.tr/haber-detay/bir-haftada-69-trafik-kazasi-1-olu-21-yarali",
+      "https://www.yeniduzen.com/trafige-bir-can-daha-motosiklet-surucusu-raif-mavideniz-yasamini-yitirdi-200104h.htm",
+      "https://www.yeniduzen.com/22-yasindaki-ramazan-topcu-trafik-kazasinda-hayatini-kaybetti-200342h.htm",
+      "https://www.yeniduzen.com/trafige-bir-can-daha-berin-yavuz-yasam-mucadelesini-kaybetti-200378h.htm",
+      "https://haberkibris.com/alsancaktaki-kazada-agir-yaralanan-berin-yavuz-17-gunluk-yasam-mucadelesini-kaybetti-0941-2026-10-11.html"
+    ]
   }
 ]

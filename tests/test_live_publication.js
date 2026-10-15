@@ -18,6 +18,14 @@ async function testBulletinUsesTargetDatePeriod() {
   assert.match(bulletin.markdown, /Türetilmiş 31 Ağustos toplamı: 27 can kaybı \/ 22 ölümlü kaza/);
 }
 
+async function testBulletinUsesOctoberWeeklyPoliceDerivation() {
+  const bulletin = await BulletinAgent.generateDailyBulletin('2026-10-11');
+  assert.strictEqual(bulletin.deaths2026, 32);
+  assert.strictEqual(bulletin.fatal2026, 27);
+  assert.match(bulletin.markdown, /Türetilmiş 11 Ekim toplamı: 32 can kaybı \/ 27 ölümlü kaza/);
+  assert.match(bulletin.markdown, /VERIFIED_COMPOSITE \(2026-10-11 itibarıyla\)/);
+}
+
 async function testTelegramBulletinUsesDefaultPagesLink() {
   const originalBaseUrl = process.env.PUBLIC_BULLETIN_BASE_URL;
   delete process.env.PUBLIC_BULLETIN_BASE_URL;
@@ -492,6 +500,8 @@ async function testFailedAttemptCanReleaseItsReservation() {
 
 await testBulletinUsesTargetDatePeriod();
 console.log('✓ Live bulletin uses the requested target-date period');
+await testBulletinUsesOctoberWeeklyPoliceDerivation();
+console.log('✓ Live bulletin uses the 11 October weekly police derivation');
 await testTelegramBulletinUsesDefaultPagesLink();
 console.log('✓ Telegram bulletin uses the default GitHub Pages link');
 await testTelegramBulletinUsesConfiguredPagesUrl();
