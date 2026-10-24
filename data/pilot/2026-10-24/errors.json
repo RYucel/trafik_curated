@@ -1,0 +1,11 @@
+[
+  {
+    "error": "LLM extraction unavailable: 77/182 calls fell back to heuristics",
+    "last_provider_error": "cerebras: Cerebras API error: 429 Too Many Requests — {\"message\":\"Requests per minute limit exceeded - too many requests sent.\",\"type\":\"too_many_requests_error\",\"param\":\"quota\",\"code\":\"request_quota_exceeded\"}",
+    "failed_providers": [
+      "gemini",
+      "cerebras"
+    ],
+    "impact": "No structured accident records could be extracted from this run."
+  }
+]
