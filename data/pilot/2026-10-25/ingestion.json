@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-25",
+  "started_at": "2026-10-25T08:05:54.631Z",
+  "completed_at": "2026-10-25T08:06:47.188Z",
+  "execution_time_ms": 52557,
+  "feeds_checked": 3,
+  "feeds_failed": 0,
+  "articles_seen": 80,
+  "new_articles": 66,
+  "traffic_candidates": 122,
+  "relevant_articles": 19,
+  "extraction_candidates_this_run": 19,
+  "individual_accidents_extracted_this_run": 0,
+  "aggregate_reports_detected_this_run": 0,
+  "extraction_review_required_this_run": 19,
+  "duplicates_detected_this_run": 0,
+  "new_canonical_accidents_this_run": 0,
+  "total_canonical_accidents": 561,
+  "multi_source_matches": 75,
+  "conflicts": 20,
+  "unverified_records": 28,
+  "review_required": 20,
+  "llm_usage": {
+    "provider": "heuristic_fallback",
+    "model": null,
+    "estimated_api_cost_usd": "0.00",
+    "total_calls": 133,
+    "fallback_calls": 125,
+    "extraction_degraded": true,
+    "last_provider_error": "cerebras: Cerebras API error: 429 Too Many Requests — {\"message\":\"Requests per minute limit exceeded - too many requests sent.\",\"type\":\"too_many_requests_error\",\"param\":\"quota\",\"code\":\"request_quota_exceeded\"}"
+  }
+}
