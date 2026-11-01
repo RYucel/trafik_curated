@@ -1,0 +1,24 @@
+{
+  "cutoff_date": "2026-07-31",
+  "data_period_label": "Ocak – Temmuz 2026 (7 Ay)",
+  "days_elapsed": 212,
+  "fatal_accidents": 19,
+  "deaths": 23,
+  "injuries": null,
+  "total_accidents": null,
+  "deaths_per_month": 3.29,
+  "deaths_per_100_days": 10.8,
+  "same_period_2025": {
+    "period_label": "Ocak – Temmuz 2025",
+    "fatal_accidents": 2,
+    "deaths": 27,
+    "injuries": 2
+  },
+  "same_period_2024": {
+    "period_label": "Ocak – Temmuz 2024",
+    "fatal_accidents": 2,
+    "deaths": 28,
+    "injuries": 0
+  },
+  "yoy_change_pct": -14.8
+}
